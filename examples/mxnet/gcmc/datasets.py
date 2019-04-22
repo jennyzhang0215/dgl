@@ -379,10 +379,6 @@ class LoadData(object):
             raise NotImplementedError
         logging.info("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
 
-
-
-
-
     def process_items(self):
         """In MovieLens, the movie attributes may have the following formats:
 
