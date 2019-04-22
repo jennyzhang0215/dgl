@@ -144,3 +144,5 @@ cscope.*
 *.swo
 *.un~
 *~
+*.iml
+*.xml
