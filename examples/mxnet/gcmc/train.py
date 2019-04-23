@@ -368,7 +368,6 @@ def config():
     parser.add_argument('--train.valid_interval', type=int, default=10)
     parser.add_argument('--train.optimizer', type=str, default="adam")
     parser.add_argument('--train.lr', type=float, default=0.01)
-    parser.add_argument('--train.lr', type=float, default=0.01)
     parser.add_argument('--train.lr_decay_factor', type=float, default=0.5)
     parser.add_argument('--train.early_stopping_patience', type=int, default=150)
     parser.add_argument('--train.grad_clip', type=float, default=10.0)
