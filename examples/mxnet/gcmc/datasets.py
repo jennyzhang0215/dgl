@@ -125,7 +125,7 @@ class LoadData(object):
             print("\n\n\n=====================> Download dataset")
             self.download(url, path=path)
             with ZipFile(path, 'r') as zf:
-                zf.extractall(path=os.path.join(_RAW_PATH, file_name))
+                zf.extractall(path=_RAW_PATH)
             if self._name == 'ml-10m':
                 os.rename(os.path.join(_RAW_PATH, 'ml-10M100K'), os.path.join(_RAW_PATH, self._name))
 
