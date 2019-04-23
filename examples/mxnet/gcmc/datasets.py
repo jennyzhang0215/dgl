@@ -2,7 +2,7 @@ import os
 import io
 import numpy as np
 from mxnet.gluon.utils import check_sha1
-from graph import HeterGraph
+from graph import HeterGraph, CSRMat
 from zipfile import ZipFile
 import warnings
 import gluonnlp as nlp
@@ -10,6 +10,8 @@ import logging
 import pandas as pd
 import re
 from mxgraph.utils import logging_config
+import scipy.sparse as sp
+
 try:
     import requests
 except ImportError:
@@ -252,9 +254,13 @@ class LoadData(object):
         global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
         logging.info('Total user number = {}, movie number = {}'.format(len(global_user_id_map),
                                                                         len(global_movie_id_map)))
-        all_ratings_CSRMat = _gen_csr_rating(self.all_rating_info, global_user_id_map, global_movie_id_map,
-                                             user_col_name="user_id", item_col_name="movie_id",
-                                             rating_col_name="rating")
+        rating_mat = sp.coo_matrix((
+            self.all_rating_info["rating"].values.astype(np.float32),
+            (np.array([global_user_id_map[ele] for ele in self.all_rating_info["user_id"]], dtype=np.int32),
+             np.array([global_movie_id_map[ele] for ele in self.all_rating_info["movie_id"]], dtype=np.int32))),
+            shape=(len(global_user_id_map), len(global_movie_id_map)), dtype=np.float32).tocsr()
+        all_ratings_CSRMat =  CSRMat.from_spy(rating_mat)
+
         uniq_ratings = np.unique(all_ratings_CSRMat.values)
         all_ratings_CSRMat.multi_link = uniq_ratings
 
