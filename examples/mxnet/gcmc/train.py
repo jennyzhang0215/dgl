@@ -18,7 +18,7 @@ from utils import get_activation, parse_ctx, \
 
 
 def load_dataset(args):
-    dataset = LoadData(args.data.name, seed = args.seed,
+    dataset = LoadData(args.data-name, seed = args.seed,
                        test_ratio = args.data-test_ratio,
                        val_ratio = args.data-valid_ratio,
                        force_download = False)
@@ -341,7 +341,7 @@ def config():
     parser.add_argument('--save_id', type=int, help='The saving log id')
     parser.add_argument('--silent', action='store_true')
 
-    parser.add_argument('--data.name', default='ml-100k', type=str,
+    parser.add_argument('--data-name', default='ml-100k', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data-test_ratio', type=float, default=0.1)
     parser.add_argument('--data-valid_ratio', type=float, default=0.1)
@@ -379,7 +379,7 @@ def config():
 
     ### configure save_fir to save all the info
     if args.save_dir is None:
-        args.save_dir = args.data.name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
+        args.save_dir = args.data-name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
