@@ -18,9 +18,9 @@ from utils import get_activation, parse_ctx, \
 
 
 def load_dataset(args):
-    dataset = LoadData(args.data-name, seed = args.seed,
+    dataset = LoadData(args.data_name, seed = args.seed,
                        test_ratio = args.data-test_ratio,
-                       val_ratio = args.data-valid_ratio,
+                       val_ratio = args.data_valid_ratio,
                        force_download = False)
     all_graph = dataset.graph
     name_user = dataset.name_user
@@ -66,31 +66,31 @@ class Net(nn.Block):
         self._nratings = nratings
         self._name_user = name_user
         self._name_item = name_item
-        self._act = get_activation(args.model-activation)
+        self._act = get_activation(args.model_activation)
         with self.name_scope():
             # Construct Encoder
             self.encoder = StackedHeterGCNLayers(prefix='enc_')
             with self.encoder.name_scope():
                 self.encoder.add(HeterGCNLayer(meta_graph=all_graph.meta_graph,
                                                multi_link_structure=all_graph.get_multi_link_structure(),
-                                               dropout_rate=args.gcn-dropout,
+                                               dropout_rate=args.gcn_dropout,
                                                agg_type='gcn',
-                                               agg_units=args.gcn-agg-units,
-                                               out_units=args.gcn-out-units,
+                                               agg_units=args.gcn_agg_units,
+                                               out_units=args.gcn_out_units,
                                                source_keys=all_graph.meta_graph.keys(),
-                                               agg_ordinal_sharing=args.gcn-agg-ordinal_share,
-                                               share_agg_weights=args.gcn.agg.share_weights,
-                                               agg_accum=args.gcn-agg-accum,
-                                               agg_act=args.model-activation,
-                                               accum_self=args.gcn-out-accum_self,
-                                               out_act=args.model-activation,
-                                               layer_accum=args.gcn-out-accum,
+                                               agg_ordinal_sharing=args.gcn_agg_ordinal_share,
+                                               share_agg_weights=args.gcn_agg_share_weights,
+                                               agg_accum=args.gcn_agg_accum,
+                                               agg_act=args.model_activation,
+                                               accum_self=args.gcn_out_accum_self,
+                                               out_act=args.model_activation,
+                                               layer_accum=args.gcn_out_accum,
                                                layer_norm=False,
                                                prefix='l0_'))
 
 
             if args.gen_r-use_classification:
-                self.gen_ratings = BiDecoder(in_units=args.gcn-out-units,
+                self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
                                              out_units=nratings,
                                              num_basis_functions=args.gen_r-num_basis_func,
                                              prefix='gen_rating')
@@ -120,7 +120,7 @@ class Net(nn.Block):
              it will return a list with multiple predicted ratings
         """
         if symm is None:
-            symm = args.gcn-agg-norm_symm
+            symm = args.gcn_agg_norm_symm
         ctx = next(iter(feature_dict.values())).context
         req_node_ids_dict = dict()
 
@@ -158,7 +158,7 @@ class Net(nn.Block):
 def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
     rating_mean = data_iter._train_ratings.mean()
     rating_std = data_iter._train_ratings.std()
-    rating_sampler = data_iter.rating_sampler(batch_size=args.train-rating_batch_size, segment=segment,
+    rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size, segment=segment,
                                               sequential=True)
     possible_rating_values = data_iter.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
@@ -176,7 +176,7 @@ def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
                                    feature_dict=feature_dict,
                                    rating_node_pairs=rating_node_pairs,
                                    graph_sampler_args=graph_sampler_args,
-                                   symm=args.gcn-agg-norm_symm)
+                                   symm=args.gcn_agg_norm_symm)
         if args.gen_r-use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
@@ -211,7 +211,7 @@ def train(seed):
     else:
         rating_loss_net = gluon.loss.L2Loss()
     rating_loss_net.hybridize()
-    trainer = gluon.Trainer(net.collect_params(), args.train-optimizer, {'learning_rate': args.train-lr})
+    trainer = gluon.Trainer(net.collect_params(), args.train_optimizer, {'learning_rate': args.train_lr})
     ### prepare the logger
     train_loss_logger = MetricLogger(['iter', 'loss', 'rmse', ], ['%d', '%.4f', '%.4f'],
                                      os.path.join(args.save_dir, 'train_loss%d.csv' % args.save_id))
@@ -220,7 +220,7 @@ def train(seed):
     test_loss_logger = MetricLogger(['iter', 'rmse'], ['%d', '%.4f'],
                                     os.path.join(args.save_dir, 'test_loss%d.csv' % args.save_id))
     ### initialize the iterator
-    rating_sampler = data_iter.rating_sampler(batch_size=args.train-rating_batch_size,
+    rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size,
                                               segment='train')
     graph_sampler_args = gen_graph_sampler_args(all_graph.meta_graph)
     rating_mean = data_iter._train_ratings.mean()
@@ -235,7 +235,7 @@ def train(seed):
     count_loss = 0
 
 
-    for iter_idx in range(1, args.train-max_iter):
+    for iter_idx in range(1, args.train_max_iter):
         rating_node_pairs, gt_ratings = next(rating_sampler)
         nd_gt_ratings = mx.nd.array(gt_ratings, ctx=args.ctx, dtype=np.float32)
         if args.gen_r-use_classification:
@@ -243,7 +243,7 @@ def train(seed):
                                       ctx=args.ctx, dtype=np.int32)
         iter_graph = data_iter.train_graph
         ## remove the batch rating pair and link prediction pair (optional)
-        if rating_node_pairs.shape[1] < data_iter._train_node_pairs.shape[1] and args.model-remove_rating:
+        if rating_node_pairs.shape[1] < data_iter._train_node_pairs.shape[1] and args.model_remove_rating:
             if iter_idx == 1:
                 logging.info("Removing training edges within the batch...")
             iter_graph = iter_graph.remove_edges_by_id(src_key=dataset.name_user,
@@ -256,7 +256,7 @@ def train(seed):
                               feature_dict=feature_dict,
                               rating_node_pairs=rating_node_pairs,
                               graph_sampler_args=graph_sampler_args,
-                              symm=args.gcn-agg-norm_symm)
+                              symm=args.gcn_agg_norm_symm)
             if args.gen_r-use_classification:
                 loss = rating_loss_net(pred_ratings[i], nd_gt_label).mean()
             else:
@@ -265,7 +265,7 @@ def train(seed):
             loss.backward()
 
         count_loss += loss.asscalar()
-        gnorm = params_clip_global_norm(net.collect_params(), args.train-grad_clip, args.ctx)
+        gnorm = params_clip_global_norm(net.collect_params(), args.train_grad_clip, args.ctx)
         avg_gnorm += gnorm
         trainer.step(1.0) #, ignore_stale_grad=True)
 
@@ -282,16 +282,16 @@ def train(seed):
         count_rmse += rmse.asscalar()
         count_num += pred_ratings.shape[0]
 
-        if iter_idx % args.train-log_interval == 0:
+        if iter_idx % args.train_log_interval == 0:
             train_loss_logger.log(iter=iter_idx,
                                   loss=count_loss/(iter_idx+1), rmse=count_rmse/count_num)
             logging_str = "Iter={}, gnorm={:.3f}, loss={:.4f}, rmse={:4f}".format(
-                iter_idx, avg_gnorm/args.train-log_interval, count_loss/(iter_idx+1), count_rmse/count_num)
+                iter_idx, avg_gnorm/args.train_log_interval, count_loss/(iter_idx+1), count_rmse/count_num)
             avg_gnorm = 0
             count_rmse = 0
             count_num = 0
 
-        if iter_idx % args.train-valid_interval == 0:
+        if iter_idx % args.train_valid_interval == 0:
             valid_rmse = evaluate(net=net,
                                     feature_dict=feature_dict,
                                     ctx=args.ctx,
@@ -311,7 +311,7 @@ def train(seed):
                 logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
             else:
                 no_better_valid += 1
-                if no_better_valid > args.train-early_stopping_patience\
+                if no_better_valid > args.train_early_stopping_patience\
                     and trainer.learning_rate <= args.train.min_lr:
                     logging.info("Early stopping threshold reached. Stop training.")
                     break
@@ -321,7 +321,7 @@ def train(seed):
                         logging.info("\tChange the LR to %g" % new_lr)
                         trainer.set_learning_rate(new_lr)
                         no_better_valid = 0
-        if iter_idx  % args.train-log_interval == 0:
+        if iter_idx  % args.train_log_interval == 0:
             logging.info(logging_str)
     logging.info('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
         best_iter, best_valid_rmse, best_test_rmse))
@@ -341,37 +341,37 @@ def config():
     parser.add_argument('--save_id', type=int, help='The saving log id')
     parser.add_argument('--silent', action='store_true')
 
-    parser.add_argument('--data-name', default='ml-100k', type=str,
+    parser.add_argument('--data_name', default='ml-100k', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
-    parser.add_argument('--data-test_ratio', type=float, default=0.1)
-    parser.add_argument('--data-valid_ratio', type=float, default=0.1)
+    parser.add_argument('--data_test_ratio', type=float, default=0.1)
+    parser.add_argument('--data_valid_ratio', type=float, default=0.1)
 
-    parser.add_argument('--model-remove_rating', type=bool, default=True)
-    parser.add_argument('--model-activation', type=str, default="leaky")
+    parser.add_argument('--model_remove_rating', type=bool, default=True)
+    parser.add_argument('--model_activation', type=str, default="leaky")
 
-    parser.add_argument('--gcn-dropout', type=float, default=0.7)
-    parser.add_argument('--gcn-agg-norm_symm', type=bool, default=True)
-    parser.add_argument('--gcn-agg-units', type=int, default=500)
-    parser.add_argument('--gcn-agg-accum', type=str, default="sum")
-    parser.add_argument('--gcn.agg.share_weights', type=bool, default=False)
-    parser.add_argument('--gcn-agg-ordinal_share', type=bool, default=False)
-    parser.add_argument('--gcn-out-accum_self', type=bool, default=False)
-    parser.add_argument('--gcn-out-units', type=int, default=75)
-    parser.add_argument('--gcn-out-accum', type=str, default="stack")
-    parser.add_argument('--gcn-out-share_weights', type=bool, default=False)
+    parser.add_argument('--gcn_dropout', type=float, default=0.7)
+    parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
+    parser.add_argument('--gcn_agg_units', type=int, default=500)
+    parser.add_argument('--gcn_agg_accum', type=str, default="sum")
+    parser.add_argument('--gcn_agg_share_weights', type=bool, default=False)
+    parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
+    parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
+    parser.add_argument('--gcn_out_units', type=int, default=75)
+    parser.add_argument('--gcn_out_accum', type=str, default="stack")
+    parser.add_argument('--gcn_out_share_weights', type=bool, default=False)
 
     parser.add_argument('--gen_r-use_classification', type=int, default=2)
     parser.add_argument('--gen_r-num_basis_func', type=int, default=2)
 
-    parser.add_argument('--train-rating_batch_size', type=int, default=10000)
-    parser.add_argument('--train-max_iter', type=int, default=100000)
-    parser.add_argument('--train-log_interval', type=int, default=10)
-    parser.add_argument('--train-valid_interval', type=int, default=10)
-    parser.add_argument('--train-optimizer', type=str, default="adam")
-    parser.add_argument('--train-lr', type=float, default=0.01)
-    parser.add_argument('--train-lr_decay_factor', type=float, default=0.5)
-    parser.add_argument('--train-early_stopping_patience', type=int, default=150)
-    parser.add_argument('--train-grad_clip', type=float, default=10.0)
+    parser.add_argument('--train_rating_batch_size', type=int, default=10000)
+    parser.add_argument('--train_max_iter', type=int, default=100000)
+    parser.add_argument('--train_log_interval', type=int, default=10)
+    parser.add_argument('--train_valid_interval', type=int, default=10)
+    parser.add_argument('--train_optimizer', type=str, default="adam")
+    parser.add_argument('--train_lr', type=float, default=0.01)
+    parser.add_argument('--train_lr_decay_factor', type=float, default=0.5)
+    parser.add_argument('--train_early_stopping_patience', type=int, default=150)
+    parser.add_argument('--train_grad_clip', type=float, default=10.0)
 
     args = parser.parse_args()
     args.ctx = parse_ctx(args.ctx)[0]
@@ -379,7 +379,7 @@ def config():
 
     ### configure save_fir to save all the info
     if args.save_dir is None:
-        args.save_dir = args.data-name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
+        args.save_dir = args.data_name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
