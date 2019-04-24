@@ -73,20 +73,21 @@ class Net(nn.Block):
             with self.encoder.name_scope():
                 ### one layer GCN
                 self.encoder.add(GCNLayer(meta_graph=all_graph.meta_graph,
-                                                   multi_link_structure=all_graph.get_multi_link_structure(),dropout_rate=args.gcn_dropout,
-                                                   agg_type='mean_pool', ## 'gcn', 'mean_pool', 'max_pool'
-                                                   agg_units=args.gcn_agg_units,
-                                                   out_units=args.gcn_out_units,
-                                                   source_keys=all_graph.meta_graph.keys(),
-                                                   agg_ordinal_sharing=args.gcn_agg_ordinal_share,
-                                                   share_agg_weights=args.gcn_agg_share_weights,
-                                                   agg_accum=args.gcn_agg_accum,
-                                                   agg_act=args.model_activation,
-                                                   accum_self=args.gcn_out_accum_self,
-                                                   out_act=None,
-                                                   layer_accum=args.gcn_out_accum,
-                                                   layer_norm=False,
-                                                   prefix='l0_'))
+                                          multi_link_structure=all_graph.get_multi_link_structure(),
+                                          dropout_rate=args.gcn_dropout,
+                                          agg_type='mean_pool', ## 'gcn', 'mean_pool', 'max_pool'
+                                          agg_units=args.gcn_agg_units,
+                                          out_units=args.gcn_out_units,
+                                          source_keys=all_graph.meta_graph.keys(),
+                                          agg_ordinal_sharing=args.gcn_agg_ordinal_share,
+                                          share_agg_weights=args.gcn_agg_share_weights,
+                                          agg_accum=args.gcn_agg_accum,
+                                          agg_act=args.model_activation,
+                                          accum_self=args.gcn_out_accum_self,
+                                          out_act=None,
+                                          layer_accum=args.gcn_out_accum,
+                                          layer_norm=False,
+                                          prefix='l0_'))
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
                                              out_units=nratings,
