@@ -19,8 +19,8 @@ from utils import get_activation, parse_ctx, \
 
 def load_dataset(args):
     dataset = LoadData(args.data.name, seed = args.seed,
-                       test_ratio = args.data.test_ratio,
-                       val_ratio = args.data.valid_ratio,
+                       test_ratio = args.data-test_ratio,
+                       val_ratio = args.data-valid_ratio,
                        force_download = False)
     all_graph = dataset.graph
     name_user = dataset.name_user
@@ -66,7 +66,7 @@ class Net(nn.Block):
         self._nratings = nratings
         self._name_user = name_user
         self._name_item = name_item
-        self._act = get_activation(args.model.activation)
+        self._act = get_activation(args.model-activation)
         with self.name_scope():
             # Construct Encoder
             self.encoder = StackedHeterGCNLayers(prefix='enc_')
@@ -81,9 +81,9 @@ class Net(nn.Block):
                                                agg_ordinal_sharing=args.gcn.agg.ordinal_share,
                                                share_agg_weights=args.gcn.agg.share_weights,
                                                agg_accum=args.gcn.agg.accum,
-                                               agg_act=args.model.activation,
+                                               agg_act=args.model-activation,
                                                accum_self=args.gcn.out.accum_self,
-                                               out_act=args.model.activation,
+                                               out_act=args.model-activation,
                                                layer_accum=args.gcn.out.accum,
                                                layer_norm=False,
                                                prefix='l0_'))
@@ -243,7 +243,7 @@ def train(seed):
                                       ctx=args.ctx, dtype=np.int32)
         iter_graph = data_iter.train_graph
         ## remove the batch rating pair and link prediction pair (optional)
-        if rating_node_pairs.shape[1] < data_iter._train_node_pairs.shape[1] and args.model.remove_rating:
+        if rating_node_pairs.shape[1] < data_iter._train_node_pairs.shape[1] and args.model-remove_rating:
             if iter_idx == 1:
                 logging.info("Removing training edges within the batch...")
             iter_graph = iter_graph.remove_edges_by_id(src_key=dataset.name_user,
@@ -343,11 +343,11 @@ def config():
 
     parser.add_argument('--data.name', default='ml-100k', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
-    parser.add_argument('--data.test_ratio', type=float, default=0.1)
-    parser.add_argument('--data.valid_ratio', type=float, default=0.1)
+    parser.add_argument('--data-test_ratio', type=float, default=0.1)
+    parser.add_argument('--data-valid_ratio', type=float, default=0.1)
 
-    parser.add_argument('--model.remove_rating', type=bool, default=True)
-    parser.add_argument('--model.activation', type=str, default="leaky")
+    parser.add_argument('--model-remove_rating', type=bool, default=True)
+    parser.add_argument('--model-activation', type=str, default="leaky")
 
     parser.add_argument('--gcn.dropout', type=float, default=0.7)
     parser.add_argument('--gcn.agg.norm_symm', type=bool, default=True)
