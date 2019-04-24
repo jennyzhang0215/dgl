@@ -19,7 +19,7 @@ from utils import get_activation, parse_ctx, \
 
 def load_dataset(args):
     dataset = LoadData(args.data_name, seed = args.seed,
-                       test_ratio = args.data-test_ratio,
+                       test_ratio = args.data_test_ratio,
                        val_ratio = args.data_valid_ratio,
                        force_download = False)
     all_graph = dataset.graph
@@ -89,10 +89,10 @@ class Net(nn.Block):
                                                prefix='l0_'))
 
 
-            if args.gen_r-use_classification:
+            if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
                                              out_units=nratings,
-                                             num_basis_functions=args.gen_r-num_basis_func,
+                                             num_basis_functions=args.gen_r_num_basis_func,
                                              prefix='gen_rating')
             else:
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
@@ -177,7 +177,7 @@ def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
                                    rating_node_pairs=rating_node_pairs,
                                    graph_sampler_args=graph_sampler_args,
                                    symm=args.gcn_agg_norm_symm)
-        if args.gen_r-use_classification:
+        if args.gen_r_use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
             rmse += mx.nd.square(real_pred_ratings - nd_gt_ratings).sum().asscalar()
@@ -206,7 +206,7 @@ def train(seed):
               name_user=dataset.name_user, name_item=dataset.name_item)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
-    if args.gen_r-use_classification:
+    if args.gen_r_use_classification:
         rating_loss_net = gluon.loss.SoftmaxCELoss()
     else:
         rating_loss_net = gluon.loss.L2Loss()
@@ -238,7 +238,7 @@ def train(seed):
     for iter_idx in range(1, args.train_max_iter):
         rating_node_pairs, gt_ratings = next(rating_sampler)
         nd_gt_ratings = mx.nd.array(gt_ratings, ctx=args.ctx, dtype=np.float32)
-        if args.gen_r-use_classification:
+        if args.gen_r_use_classification:
             nd_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
         iter_graph = data_iter.train_graph
@@ -257,7 +257,7 @@ def train(seed):
                               rating_node_pairs=rating_node_pairs,
                               graph_sampler_args=graph_sampler_args,
                               symm=args.gcn_agg_norm_symm)
-            if args.gen_r-use_classification:
+            if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings[i], nd_gt_label).mean()
             else:
                 loss = rating_loss_net(mx.nd.reshape(pred_ratings[i], shape=(-1,)),
@@ -273,7 +273,7 @@ def train(seed):
             logging.info("Total #Param of net: %d" % (gluon_total_param_num(net)))
             logging.info(gluon_net_info(net, save_path=os.path.join(args.save_dir, 'net%d.txt' % args.save_id)))
 
-        if args.gen_r-use_classification:
+        if args.gen_r_use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
             rmse = mx.nd.square(real_pred_ratings - nd_gt_ratings).sum()
@@ -360,8 +360,8 @@ def config():
     parser.add_argument('--gcn_out_accum', type=str, default="stack")
     parser.add_argument('--gcn_out_share_weights', type=bool, default=False)
 
-    parser.add_argument('--gen_r-use_classification', type=int, default=2)
-    parser.add_argument('--gen_r-num_basis_func', type=int, default=2)
+    parser.add_argument('--gen_r_use_classification', type=int, default=2)
+    parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
     parser.add_argument('--train_rating_batch_size', type=int, default=10000)
     parser.add_argument('--train_max_iter', type=int, default=100000)
