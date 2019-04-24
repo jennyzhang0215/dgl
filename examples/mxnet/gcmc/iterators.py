@@ -3,7 +3,7 @@ import numpy as np
 from graph import HeterGraph, CSRMat
 
 
-class HeterIterator(object):
+class DataIterator(object):
     def __init__(self, all_graph, name_user, name_item,
                  test_node_pairs=None, valid_node_pairs=None,
                  seed=100):

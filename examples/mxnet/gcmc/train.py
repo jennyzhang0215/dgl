@@ -11,7 +11,7 @@ from mxnet.gluon import nn
 from graph import HeterGraph, merge_node_ids_dict, set_seed
 from datasets import LoadData
 from layers import GCNLayer, BiDecoder, StackedGCNLayers, InnerProductLayer
-from iterators import HeterIterator
+from iterators import DataIterator
 from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
@@ -74,7 +74,7 @@ class Net(nn.Block):
                 ### one layer GCN
                 self.encoder.add(GCNLayer(meta_graph=all_graph.meta_graph,
                                                    multi_link_structure=all_graph.get_multi_link_structure(),dropout_rate=args.gcn_dropout,
-                                                   agg_type='gcn',
+                                                   agg_type='mean_pool', ## 'gcn', 'mean_pool', 'max_pool'
                                                    agg_units=args.gcn_agg_units,
                                                    out_units=args.gcn_out_units,
                                                    source_keys=all_graph.meta_graph.keys(),
@@ -187,12 +187,12 @@ def train(args):
     dataset, all_graph, feature_dict = load_dataset(args)
     valid_node_pairs, _ = dataset.valid_data
     test_node_pairs, _ = dataset.test_data
-    data_iter = HeterIterator(all_graph=all_graph,
-                              name_user=dataset.name_user,
-                              name_item=dataset.name_item,
-                              test_node_pairs=test_node_pairs,
-                              valid_node_pairs=valid_node_pairs,
-                              seed=args.seed)
+    data_iter = DataIterator(all_graph=all_graph,
+                             name_user=dataset.name_user,
+                             name_item=dataset.name_item,
+                             test_node_pairs=test_node_pairs,
+                             valid_node_pairs=valid_node_pairs,
+                             seed=args.seed)
     logging.info(data_iter)
     ### build the net
     possible_rating_values = data_iter.possible_rating_values
