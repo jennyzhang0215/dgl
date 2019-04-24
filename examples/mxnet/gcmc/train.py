@@ -124,8 +124,6 @@ class Net(nn.Block):
         ctx = next(iter(feature_dict.values())).context
         req_node_ids_dict = dict()
 
-        # From top to bottom, generate the forwarding plan
-
         uniq_node_ids_dict, encoder_fwd_indices = \
             merge_node_ids_dict([{self._name_user: rating_node_pairs[0],
                                   self._name_item: rating_node_pairs[1]},
@@ -250,12 +248,11 @@ def train(args):
                                                        node_pair_ids=rating_node_pairs)
 
         with mx.autograd.record():
-            pred_ratings, pred_embeddings, gt_embeddings\
-                = net.forward(graph=iter_graph,
-                              feature_dict=feature_dict,
-                              rating_node_pairs=rating_node_pairs,
-                              graph_sampler_args=graph_sampler_args,
-                              symm=args.gcn_agg_norm_symm)
+            pred_ratings = net.forward(graph=iter_graph,
+                                       feature_dict=feature_dict,
+                                       rating_node_pairs=rating_node_pairs,
+                                       graph_sampler_args=graph_sampler_args,
+                                       symm=args.gcn_agg_norm_symm)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
