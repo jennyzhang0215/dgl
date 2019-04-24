@@ -312,7 +312,7 @@ def train(args):
                     logging.info("Early stopping threshold reached. Stop training.")
                     break
                 if no_better_valid > args.train_decay_patience:
-                    new_lr = max(trainer.learning_rate * args.train_decay_factor, args.train_min_lr)
+                    new_lr = max(trainer.learning_rate * args.train_lr_decay_factor, args.train_min_lr)
                     if new_lr < trainer.learning_rate:
                         logging.info("\tChange the LR to %g" % new_lr)
                         trainer.set_learning_rate(new_lr)
