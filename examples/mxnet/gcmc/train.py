@@ -257,9 +257,9 @@ def train(args):
                               graph_sampler_args=graph_sampler_args,
                               symm=args.gcn_agg_norm_symm)
             if args.gen_r_use_classification:
-                loss = rating_loss_net(pred_ratings[i], nd_gt_label).mean()
+                loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
-                loss = rating_loss_net(mx.nd.reshape(pred_ratings[i], shape=(-1,)),
+                loss = rating_loss_net(mx.nd.reshape(pred_ratings, shape=(-1,)),
                                         (nd_gt_ratings - rating_mean) / rating_std ).mean()
             loss.backward()
 
@@ -381,6 +381,7 @@ def config():
         args.save_dir = args.data_name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
     if args.save_id is None:
         args.save_id = random.randint(20)
+    args.save_dir = os.path.join("log", args.save_dir)
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
