@@ -364,11 +364,12 @@ def config():
     parser.add_argument('--train_log_interval', type=int, default=10)
     parser.add_argument('--train_valid_interval', type=int, default=10)
     parser.add_argument('--train_optimizer', type=str, default="adam")
+    parser.add_argument('--train_grad_clip', type=float, default=10.0)
     parser.add_argument('--train_lr', type=float, default=0.01)
+    parser.add_argument('--train_min_lr', type=float, default=0.0001)
     parser.add_argument('--train_lr_decay_factor', type=float, default=0.5)
     parser.add_argument('--train_decay_patience', type=int, default=50)
     parser.add_argument('--train_early_stopping_patience', type=int, default=150)
-    parser.add_argument('--train_grad_clip', type=float, default=10.0)
 
     args = parser.parse_args()
     args.ctx = parse_ctx(args.ctx)[0]
