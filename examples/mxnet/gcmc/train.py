@@ -293,8 +293,8 @@ def train(args):
                                   feature_dict=feature_dict,
                                   data_iter=data_iter,
                                   segment='valid')
-            valid_loss_logger.log(**dict([('iter', iter_idx), ('rmse', valid_rmse)]))
-            logging_str += ',\tVal RMSE={:.4f}.format(valid_rmse)'
+            valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
+            logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
 
             if valid_rmse < best_valid_rmse:
                 best_valid_rmse = valid_rmse
@@ -308,11 +308,11 @@ def train(args):
             else:
                 no_better_valid += 1
                 if no_better_valid > args.train_early_stopping_patience\
-                    and trainer.learning_rate <= args.train.min_lr:
+                    and trainer.learning_rate <= args.train_min_lr:
                     logging.info("Early stopping threshold reached. Stop training.")
                     break
-                if no_better_valid > args.train.decay_patience:
-                    new_lr = max(trainer.learning_rate * args.train.decay_factor, args.train.min_lr)
+                if no_better_valid > args.train_decay_patience:
+                    new_lr = max(trainer.learning_rate * args.train_decay_factor, args.train_min_lr)
                     if new_lr < trainer.learning_rate:
                         logging.info("\tChange the LR to %g" % new_lr)
                         trainer.set_learning_rate(new_lr)
