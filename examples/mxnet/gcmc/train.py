@@ -10,7 +10,7 @@ from mxnet.gluon import nn
 
 from graph import HeterGraph, merge_node_ids_dict, set_seed
 from datasets import LoadData
-from layers import HeterGCNLayer, BiDecoder, StackedHeterGCNLayers, LayerDictionary, InnerProductLayer
+from layers import GCNLayer, BiDecoder, StackedGCNLayers, InnerProductLayer
 from iterators import HeterIterator
 from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
@@ -69,26 +69,24 @@ class Net(nn.Block):
         self._act = get_activation(args.model_activation)
         with self.name_scope():
             # Construct Encoder
-            self.encoder = StackedHeterGCNLayers(prefix='enc_')
+            self.encoder = StackedGCNLayers(prefix='enc_')
             with self.encoder.name_scope():
-                self.encoder.add(HeterGCNLayer(meta_graph=all_graph.meta_graph,
-                                               multi_link_structure=all_graph.get_multi_link_structure(),
-                                               dropout_rate=args.gcn_dropout,
-                                               agg_type='gcn',
-                                               agg_units=args.gcn_agg_units,
-                                               out_units=args.gcn_out_units,
-                                               source_keys=all_graph.meta_graph.keys(),
-                                               agg_ordinal_sharing=args.gcn_agg_ordinal_share,
-                                               share_agg_weights=args.gcn_agg_share_weights,
-                                               agg_accum=args.gcn_agg_accum,
-                                               agg_act=args.model_activation,
-                                               accum_self=args.gcn_out_accum_self,
-                                               out_act=args.model_activation,
-                                               layer_accum=args.gcn_out_accum,
-                                               layer_norm=False,
-                                               prefix='l0_'))
-
-
+                ### one layer GCN
+                self.encoder.add(GCNLayer(meta_graph=all_graph.meta_graph,
+                                                   multi_link_structure=all_graph.get_multi_link_structure(),dropout_rate=args.gcn_dropout,
+                                                   agg_type='gcn',
+                                                   agg_units=args.gcn_agg_units,
+                                                   out_units=args.gcn_out_units,
+                                                   source_keys=all_graph.meta_graph.keys(),
+                                                   agg_ordinal_sharing=args.gcn_agg_ordinal_share,
+                                                   share_agg_weights=args.gcn_agg_share_weights,
+                                                   agg_accum=args.gcn_agg_accum,
+                                                   agg_act=args.model_activation,
+                                                   accum_self=args.gcn_out_accum_self,
+                                                   out_act=None,
+                                                   layer_accum=args.gcn_out_accum,
+                                                   layer_norm=False,
+                                                   prefix='l0_'))
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
                                              out_units=nratings,
@@ -349,12 +347,12 @@ def config():
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
     parser.add_argument('--gcn_agg_units', type=int, default=500)
     parser.add_argument('--gcn_agg_accum', type=str, default="sum")
-    parser.add_argument('--gcn_agg_share_weights', type=bool, default=False)
+    parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
     parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
+    parser.add_argument('--gcn_out_share_weights', type=bool, default=True)
     parser.add_argument('--gcn_out_units', type=int, default=75)
     parser.add_argument('--gcn_out_accum', type=str, default="stack")
-    parser.add_argument('--gcn_out_share_weights', type=bool, default=False)
 
     parser.add_argument('--gen_r_use_classification', type=int, default=2)
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)

@@ -248,8 +248,6 @@ class LoadData(object):
 
         # Map user/movie to the global id
         logging.info("  -----------------")
-
-        logging.info("Generating user id map and movie id map ...")
         global_user_id_map = {ele: i for i, ele in enumerate(self.user_info['id'])}
         global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
         logging.info('Total user number = {}, movie number = {}'.format(len(global_user_id_map),
@@ -358,7 +356,6 @@ class LoadData(object):
             user_info = user_info.dropna(subset=["id", 'id_graph'])
             user_info = user_info.drop(columns=["id_graph"])
             self.user_info = user_info.reset_index(drop=True)
-            print(self.user_info)
 
             ages = self.user_info['age'].values.astype(np.float32)
             gender = (self.user_info['gender'] == 'F').values.astype(np.float32)

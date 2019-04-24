@@ -38,7 +38,7 @@ class LayerDictionary(Block):
         return key in self._key2idx
 
 
-class HeterGCNLayer(Block):
+class GCNLayer(Block):
     def __init__(self, meta_graph, multi_link_structure, agg_units, out_units, source_keys=None,
                  dropout_rate=0.0,
                  agg_type='gcn', agg_ordinal_sharing=False, share_agg_weights=False,
@@ -80,7 +80,7 @@ class HeterGCNLayer(Block):
         prefix : str
         params : None
         """
-        super(HeterGCNLayer, self).__init__(prefix=prefix, params=params)
+        super(GCNLayer, self).__init__(prefix=prefix, params=params)
         self._meta_graph = meta_graph
         if source_keys is None:
             source_keys = meta_graph.keys()
@@ -309,19 +309,19 @@ class InnerProductLayer(HybridBlock):
         return score
 
 
-class StackedHeterGCNLayers(nn.Sequential):
+class StackedGCNLayers(nn.Sequential):
     """Stack multiple HeterGCNLayers
     """
 
     def __init__(self, recurrent_layer_num=None, **kwargs):
-        super(StackedHeterGCNLayers, self).__init__(**kwargs)
+        super(StackedGCNLayers, self).__init__(**kwargs)
         self._recurrent_layer_num = recurrent_layer_num
 
     def __len__(self):
         if self._recurrent_layer_num is None:
-            return super(StackedHeterGCNLayers, self).__len__()
+            return super(StackedGCNLayers, self).__len__()
         else:
-            if super(StackedHeterGCNLayers, self).__len__() == 0:
+            if super(StackedGCNLayers, self).__len__() == 0:
                 return 0
             else:
                 return self._recurrent_layer_num
@@ -329,11 +329,11 @@ class StackedHeterGCNLayers(nn.Sequential):
     def __getitem__(self, key):
         if self._recurrent_layer_num is not None:
             if key < self._recurrent_layer_num:
-                return super(StackedHeterGCNLayers, self).__getitem__(0)
+                return super(StackedGCNLayers, self).__getitem__(0)
             else:
                 raise KeyError('{} is out of range. Layer number={}'.format(key, len(self)))
         else:
-            return super(StackedHeterGCNLayers, self).__getitem__(key)
+            return super(StackedGCNLayers, self).__getitem__(key)
 
     def add(self, *blocks):
         if self._recurrent_layer_num is not None:
@@ -343,8 +343,8 @@ class StackedHeterGCNLayers(nn.Sequential):
                 raise ValueError('Can only add a single block if `use_recurrent` flag'
                                  ' is turned on!')
         for block in blocks:
-            assert isinstance(block, HeterGCNLayer)
-        super(StackedHeterGCNLayers, self).add(*blocks)
+            assert isinstance(block, GCNLayer)
+        super(StackedGCNLayers, self).add(*blocks)
 
     def gen_plan(self, graph, sel_node_ids_dict, graph_sampler_args=None, symm=True):
         """
