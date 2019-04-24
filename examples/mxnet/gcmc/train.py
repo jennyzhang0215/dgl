@@ -155,7 +155,7 @@ class Net(nn.Block):
 
 
 
-def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
+def evaluate(args, net, feature_dict, data_iter, segment='valid'):
     rating_mean = data_iter._train_ratings.mean()
     rating_std = data_iter._train_ratings.std()
     rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size, segment=segment,
@@ -169,9 +169,8 @@ def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
     rmse = 0
 
     for rating_node_pairs, gt_ratings in rating_sampler:
-        nd_gt_ratings = mx.nd.array(gt_ratings, dtype=np.float32, ctx=ctx)
+        nd_gt_ratings = mx.nd.array(gt_ratings, dtype=np.float32, ctx=args.ctx)
         cnt += rating_node_pairs.shape[1]
-
         pred_ratings = net.forward(graph=eval_graph,
                                    feature_dict=feature_dict,
                                    rating_node_pairs=rating_node_pairs,
@@ -188,8 +187,8 @@ def evaluate(net, feature_dict, ctx, data_iter, segment='valid'):
     rmse  = np.sqrt(rmse / cnt)
     return rmse
 
-def train(seed):
-    dataset, all_graph, feature_dict = load_dataset(seed)
+def train(args):
+    dataset, all_graph, feature_dict = load_dataset(args)
     valid_node_pairs, _ = dataset.valid_data
     test_node_pairs, _ = dataset.test_data
     data_iter = HeterIterator(all_graph=all_graph,
@@ -197,7 +196,7 @@ def train(seed):
                               name_item=dataset.name_item,
                               test_node_pairs=test_node_pairs,
                               valid_node_pairs=valid_node_pairs,
-                              seed=seed)
+                              seed=args.seed)
     logging.info(data_iter)
     ### build the net
     possible_rating_values = data_iter.possible_rating_values
@@ -292,11 +291,11 @@ def train(seed):
             count_num = 0
 
         if iter_idx % args.train_valid_interval == 0:
-            valid_rmse = evaluate(net=net,
-                                    feature_dict=feature_dict,
-                                    ctx=args.ctx,
-                                    data_iter=data_iter,
-                                    segment='valid')
+            valid_rmse = evaluate(args=args,
+                                  net=net,
+                                  feature_dict=feature_dict,
+                                  data_iter=data_iter,
+                                  segment='valid')
             valid_loss_logger.log(**dict([('iter', iter_idx), ('rmse', valid_rmse)]))
             logging_str += ',\tVal RMSE={:.4f}.format(valid_rmse)'
 
@@ -305,7 +304,7 @@ def train(seed):
                 no_better_valid = 0
                 best_iter = iter_idx
                 #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
-                test_rmse = evaluate(net=net, feature_dict=feature_dict, ctx=args.ctx, data_iter=data_iter, segment='test')
+                test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, data_iter=data_iter, segment='test')
                 best_test_rmse = test_rmse
                 test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
                 logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
@@ -394,4 +393,4 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     mx.random.seed(args.seed, args.ctx)
     set_seed(args.seed)
-    train(seed=args.seed)
+    train(args)
