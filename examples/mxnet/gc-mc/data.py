@@ -324,5 +324,5 @@ class MovieLens(object):
 
 if __name__ == '__main__':
     MovieLens("ml-100k")
-    MovieLens("ml-1m")
-    MovieLens("ml-10m")
+    # MovieLens("ml-1m")
+    # MovieLens("ml-10m")
