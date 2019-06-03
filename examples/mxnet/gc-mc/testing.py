@@ -5,7 +5,7 @@ import scipy.sparse as sp
 import networkx as nx
 import dgl
 import sys
-import mxnet.ndarray as nd
+import mxnet.nd as nd
 import mxnet as mx
 
 
