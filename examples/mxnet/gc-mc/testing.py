@@ -87,8 +87,8 @@ def gen_bipartite():
         print("sup_coo.row", sup_coo.row)
         print("sup_coo.col", sup_coo.col)
         print("sup_coo.data", sup_coo.data)
-        g.edges[nd.array(sup_coo.row, ctx = ctx),
-                nd.array(sup_coo.col, ctx = ctx)].data['support_{}'.format(idx)] = \
+        g.edges[nd.array(sup_coo.row, dtype=np.int64, ctx = ctx),
+                nd.array(sup_coo.col, dtype=np.int64, ctx = ctx)].data['support_{}'.format(idx)] = \
             nd.array(sup_coo.data, ctx = ctx)
 
     print("#users: {}".format(g['user'].number_of_nodes()))
