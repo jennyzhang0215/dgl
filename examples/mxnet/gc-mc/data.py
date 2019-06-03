@@ -103,7 +103,8 @@ class MovieLens(object):
             number_of_nodes_by_type={'user': len(global_user_id_map),
                                      'movie': len(global_movie_id_map)},
             edge_connections_by_type={('user', 'movie', 'rating'): user_movie_train_ratings_coo},
-            node_frame={"user": self.user_features, "movie": self.movie_features})
+            node_frame={"user": self.user_features, "movie": self.movie_features},
+            readonly=True)
 
         # self.train_graph = hetergraph.DGLBipartiteGraph(
         #     metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
