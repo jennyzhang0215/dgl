@@ -26,7 +26,7 @@ def gen_bipartite():
                               readonly = True)
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
-    print("#ratings: {}".format(g.number_of_nodes()))
+    print("#ratings: {}".format(g.number_of_edges()))
     print(g.edges())
 
 
