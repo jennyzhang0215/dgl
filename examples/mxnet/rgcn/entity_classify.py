@@ -82,6 +82,8 @@ def main(args):
     g.add_edges(data.edge_src, data.edge_dst)
     g.edata.update({'type': edge_type, 'norm': edge_norm})
     print('edge_type', edge_type)
+    print('edge_norm', edge_norm)
+
 
     # create model
     model = EntityClassify(len(g),
