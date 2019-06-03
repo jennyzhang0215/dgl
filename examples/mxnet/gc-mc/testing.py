@@ -45,25 +45,27 @@ def _globally_normalize_bipartite_adjacency(adjacencies, symmetric=True):
     return adj_norm
 
 def compute_support(adj_train, num_link, symmetric):
-    support = []
+    support_l = []
     adj_train_int = sp.csr_matrix(adj_train, dtype=np.int32)
     for i in range(num_link):
         # build individual binary rating matrices (supports) for each rating
         support_unnormalized = sp.csr_matrix(adj_train_int == i + 1, dtype=np.float32)
-        support.append(support_unnormalized)
+        support_l.append(support_unnormalized)
 
-    support = _globally_normalize_bipartite_adjacency(support, symmetric=symmetric)
+    support_l = _globally_normalize_bipartite_adjacency(support_l, symmetric=symmetric)
 
-    num_support = len(support)
+    num_support = len(support_l)
     print("num_support:", num_support)
-    for sup in support:
-        print(sup.toarray())
+    for idx, sup in enumerate(support_l):
+        print("support{}:\n".format(idx), sup.toarray(), "\n")
     #support = sp.hstack(support, format='csr')
-    return support
+    return support_l
 
 def gen_bipartite():
     n_user = 4
     n_item = 5
+    num_link = 5
+    sym = True
     user_item_R = np.array([[1,2,0,4,0], [0,0,3,0,5], [1,0,0,4,0], [0,2,0,0,5]])
     user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
@@ -75,6 +77,11 @@ def gen_bipartite():
                               readonly = True)
     g.edata["rating"] = user_item_ratings
 
+    support_l = compute_support(user_item_R, num_link, sym)
+    for idx, support in enumerate(support_l):
+        sup_coo = support.tocoo()
+        g.edges[sup_coo.row, sup_coo.col].data['support_{}'.format(idx)] = sup_coo.data
+
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     print("#ratings: {}".format(g.number_of_edges()))
@@ -84,7 +91,6 @@ def gen_bipartite():
     # print("g.edges('uv', 'srcdst')", g.edges('uv', 'srcdst'))
     print("g.edata", g.edata)
 
-    compute_support(user_item_R, 5, True)
 
     return g
 
