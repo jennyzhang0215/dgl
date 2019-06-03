@@ -28,10 +28,13 @@ def gen_bipartite():
                               node_frame = {"user": np.eye(n_user), "item": np.eye(n_item)},
                               readonly = True)
     g.edata["rating"] =  user_item_ratings
-    print("#users: {}".format(g['user'].number_of_nodes()), g['user'].nodes)
-    print("#items: {}".format(g['item'].number_of_nodes()), g['item'].nodes)
+    print("#users: {}".format(g['user'].number_of_nodes()))
+    print("#items: {}".format(g['item'].number_of_nodes()))
     print("#ratings: {}".format(g.number_of_edges()))
-    print("g.all_edges", g.all_edges)
+    print("g.edges('all', 'eid')", g.edges('all', 'eid'))
+    print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
+    print("g.edges('uv', 'eid')", g.edges('uv', 'eid'))
+    print("g.edges('uv', 'srcdst')", g.edges('uv', 'srcdst'))
     print("g.edata", g.edata)
 
     return g
