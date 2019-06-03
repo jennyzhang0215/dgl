@@ -6,8 +6,8 @@ import pandas as pd
 import scipy.sparse as sp
 from scipy.sparse import coo_matrix
 import gluonnlp as nlp
-import dgl
 import networkx as nx
+import hetergraph
 
 READ_DATASET_PATH = os.path.join("data_set")
 GENRES_ML_100K =\
@@ -66,6 +66,7 @@ class MovieLens(object):
         print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
         print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
+
         user_movie_ratings_coo = sp.coo_matrix(
             (self.all_rating_info["rating"].values.astype(np.float32),
              (np.array([global_user_id_map[ele] for ele in self.all_rating_info["user_id"]], dtype=np.int64),
@@ -73,14 +74,14 @@ class MovieLens(object):
             shape=(len(global_user_id_map), len(global_movie_id_map)),
             dtype = np.float32)
         movie_user_ratings_coo = user_movie_ratings_coo.transpose()
-        self.all_graph = dgl.DGLBipartiteGraph(metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
-                                                                        ('movie', 'user', 'rating')]),
-                                               number_of_nodes_by_type={'user': len(global_user_id_map),
-                                                                        'movie': len(global_movie_id_map)},
-                                               edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
-                                                                         ('movie', 'user', 'rating'): movie_user_ratings_coo},
-                                               node_frame={"user": self.user_features, "item": self.movie_features},
-                                               readonly=True)
+        self.all_graph = hetergraph.DGLBipartiteGraph(
+            metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
+                                     ('movie', 'user', 'rating')]),
+            number_of_nodes_by_type={'user': len(global_user_id_map),
+                                     'movie': len(global_movie_id_map)},
+            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
+                                      ('movie', 'user', 'rating'): movie_user_ratings_coo},
+            node_frame={"user": self.user_features, "item": self.movie_features})
 
         user_movie_train_ratings_coo = sp.coo_matrix(
             (self.training_rating_info["rating"].values.astype(np.float32),
@@ -89,14 +90,14 @@ class MovieLens(object):
             shape=(len(global_user_id_map), len(global_movie_id_map)),
             dtype=np.float32)
         movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
-        self.train_graph = dgl.DGLBipartiteGraph(metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
-                                                                          ('movie', 'user', 'rating')]),
-                                                 number_of_nodes_by_type={'user': len(global_user_id_map),
-                                                                          'movie': len(global_movie_id_map)},
-                                                 edge_connections_by_type={('user', 'movie', 'rating'): user_movie_train_ratings_coo,
-                                                                           ('movie', 'user', 'rating'): movie_user_train_ratings_coo},
-                                                 node_frame={"user": self.user_features, "movie": self.movie_features},
-                                                 readonly=True)
+        self.train_graph = hetergraph.DGLBipartiteGraph(
+            metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
+                                     ('movie', 'user', 'rating')]),
+            number_of_nodes_by_type={'user': len(global_user_id_map),
+                                     'movie': len(global_movie_id_map)},
+            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_train_ratings_coo,
+                                      ('movie', 'user', 'rating'): movie_user_train_ratings_coo},
+            node_frame={"user": self.user_features, "movie": self.movie_features})
 
 
     ### check whether the user/items in info all appear in the rating
