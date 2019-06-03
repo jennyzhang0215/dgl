@@ -82,6 +82,7 @@ class MovieLens(object):
             edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo},
             node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
+
         # self.all_graph = hetergraph.DGLBipartiteGraph(
         #     metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
         #                              ('movie', 'user', 'rating')]),
@@ -90,6 +91,10 @@ class MovieLens(object):
         #     edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
         #                               ('movie', 'user', 'rating'): movie_user_ratings_coo},
         #     node_frame={"user": self.user_features, "movie": self.movie_features})
+
+
+
+
 
         user_movie_train_ratings_coo = sp.coo_matrix(
             (self.train_rating_info["rating"].values.astype(np.float32),
