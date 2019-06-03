@@ -74,9 +74,9 @@ def gen_bipartite():
     user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
     user_item_ratings = np.array([1,2,4,3,5,1,4,2,5])
-    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating')]),
+    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating1')]),
                               number_of_nodes_by_type = {'user': n_user, 'item': n_item},
-                              edge_connections_by_type = {('user', 'item', 'rating'): (user_item_pair[0, :],
+                              edge_connections_by_type = {('user', 'item', 'rating1'): (user_item_pair[0, :],
                                                                                        user_item_pair[1, :])},
                               readonly = True)
     g.edata["rating"] = user_item_ratings
