@@ -55,7 +55,9 @@ def compute_support(adj_train, num_link, symmetric):
     support = _globally_normalize_bipartite_adjacency(support, symmetric=symmetric)
 
     num_support = len(support)
-    print("num_support:", num_support, support)
+    print("num_support:", num_support)
+    for sup in support:
+        print(sup.toarray())
     #support = sp.hstack(support, format='csr')
     return support
 
@@ -83,7 +85,7 @@ def gen_bipartite():
     print("g.edata", g.edata)
 
     compute_support(user_item_R, 5, True)
-    
+
     return g
 
 
