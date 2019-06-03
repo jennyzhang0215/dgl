@@ -30,5 +30,4 @@ def gen_bipartite():
     print(g.edges())
 
 
-
 gen_bipartite()
