@@ -8,6 +8,7 @@ from scipy.sparse import coo_matrix
 import gluonnlp as nlp
 import networkx as nx
 import hetergraph
+import dgl
 
 READ_DATASET_PATH = os.path.join("data_set")
 GENRES_ML_100K =\
@@ -79,7 +80,8 @@ class MovieLens(object):
             number_of_nodes_by_type={'user': len(global_user_id_map),
                                      'movie': len(global_movie_id_map)},
             edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo},
-            node_frame={"user": self.user_features, "item": self.movie_features})
+            node_frame={"user": self.user_features, "item": self.movie_features},
+            readonly=True)
         # self.all_graph = hetergraph.DGLBipartiteGraph(
         #     metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
         #                              ('movie', 'user', 'rating')]),
