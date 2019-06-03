@@ -38,7 +38,7 @@ class MovieLens(object):
             num_test = int(np.ceil(self.all_rating_info.shape[0] * 0.1))
             shuffled_idx = np.random.permutation(self.all_rating_info.shape[0])
             self.test_rating_info = self.all_rating_info.iloc[shuffled_idx[: num_test]]
-            self.training_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
+            self.train_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
         else:
             raise NotImplementedError
         print("All rating pairs : {}".format(self.all_rating_info.shape[0]))
@@ -92,9 +92,9 @@ class MovieLens(object):
         #     node_frame={"user": self.user_features, "movie": self.movie_features})
 
         user_movie_train_ratings_coo = sp.coo_matrix(
-            (self.training_rating_info["rating"].values.astype(np.float32),
-             (np.array([global_user_id_map[ele] for ele in self.training_rating_info["user_id"]], dtype=np.int64),
-              np.array([global_movie_id_map[ele] for ele in self.training_rating_info["movie_id"]], dtype=np.int64))),
+            (self.train_rating_info["rating"].values.astype(np.float32),
+             (np.array([global_user_id_map[ele] for ele in self.train_rating_info["user_id"]], dtype=np.int64),
+              np.array([global_movie_id_map[ele] for ele in self.train_rating_info["movie_id"]], dtype=np.int64))),
             shape=(len(global_user_id_map), len(global_movie_id_map)),
             dtype=np.float32)
         #movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
