@@ -68,6 +68,8 @@ def gen_bipartite():
     n_item = 5
     num_link = 5
     sym = True
+    ctx = mx.cpu()
+
     user_item_R = np.array([[1,2,0,4,0], [0,0,3,0,5], [1,0,0,4,0], [0,2,0,0,5]])
     user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
@@ -85,7 +87,9 @@ def gen_bipartite():
         print("sup_coo.row", sup_coo.row)
         print("sup_coo.col", sup_coo.col)
         print("sup_coo.data", sup_coo.data)
-        g.edges[sup_coo.row, sup_coo.col].data['support_{}'.format(idx)] = nd.array(sup_coo.data, ctx=mx.cpu())
+        g.edges[nd.array(sup_coo.row, ctx = ctx),
+                nd.array(sup_coo.col, ctx = ctx)].data['support_{}'.format(idx)] = \
+            nd.array(sup_coo.data, ctx = ctx)
 
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
