@@ -5,7 +5,7 @@ import scipy.sparse as sp
 import networkx as nx
 import dgl
 import sys
-import mxnet.nd as nd
+import mxnet.ndarray as nd
 import mxnet as mx
 
 
@@ -89,7 +89,7 @@ def gen_bipartite():
         print("sup_coo.data", sup_coo.data)
         g.edges[np.array(sup_coo.row, dtype=np.int64),
                 np.array(sup_coo.col, dtype=np.int64)].data['support_{}'.format(idx)] = \
-            nd.array(sup_coo.data, ctx = ctx)
+            nd.array(sup_coo.data)
 
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
