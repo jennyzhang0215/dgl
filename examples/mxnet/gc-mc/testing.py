@@ -80,6 +80,9 @@ def gen_bipartite():
     support_l = compute_support(user_item_R, num_link, sym)
     for idx, support in enumerate(support_l):
         sup_coo = support.tocoo()
+        print("sup_coo.row", sup_coo.row)
+        print("sup_coo.col", sup_coo.col)
+        print("sup_coo.data", sup_coo.data)
         g.edges[sup_coo.row, sup_coo.col].data['support_{}'.format(idx)] = sup_coo.data
 
     print("#users: {}".format(g['user'].number_of_nodes()))
