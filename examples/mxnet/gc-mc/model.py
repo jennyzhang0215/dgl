@@ -17,7 +17,7 @@ class LayerDictionary(Block):
         super(LayerDictionary, self).__init__(**kwargs)
         self._key2idx = dict()
         with self.name_scope():
-            self._layers = nn.Sequential()
+            self._layers = nn.HybridSequential()
         self._nlayers = 0
 
     def __len__(self):
@@ -39,7 +39,7 @@ class LayerDictionary(Block):
         return key in self._key2idx
 
 
-class MultiLinkGCNAggregator(Block):
+class MultiLinkGCNAggregator(HybridBlock):
     def __init__(self, units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
@@ -61,8 +61,7 @@ class MultiLinkGCNAggregator(Block):
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
-    def forward(self, g, dst_key, **kwargs):
-        w, bias = kwargs['weight0'], kwargs['bias0']
+    def hybrid_forward(self, F, g, dst_key, **kwargs):
         def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
@@ -94,7 +93,7 @@ class MultiLinkGCNAggregator(Block):
         return h
 
 
-class GCMCLayer(Block):
+class GCMCLayer(HybridBlock):
     def __init__(self, agg_units, out_units, num_links, src_key, dst_key,
                  dropout_rate=0.0, agg_accum='stack', agg_act=None,
                  agg_ordinal_sharing=False, share_agg_weights=False,
@@ -127,7 +126,7 @@ class GCMCLayer(Block):
 
             self._out_act = get_activation(out_act)
 
-    def forward(self, src_g, dst_g, src_key, dst_key):
+    def hybrid_forward(self, F, src_g, dst_g, src_key, dst_key):
         dst_h = self._aggregators[(src_key, dst_key)](src_g, dst_key)
         src_h = self._aggregators[(dst_key, src_key)](dst_g, src_key)
         out_dst = self._out_act(self._out_fcs[dst_key](dst_h))
