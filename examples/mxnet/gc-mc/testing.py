@@ -5,7 +5,6 @@ import scipy.sparse as sp
 import networkx as nx
 import dgl
 import sys
-import mxnet.ndarray as nd
 import mxnet as mx
 
 
@@ -89,8 +88,8 @@ def gen_bipartite():
         print("sup_coo.col", sup_coo.col)
         print("sup_coo.data", sup_coo.data)
         g.edges[np.array(sup_coo.row, dtype=np.int64),
-                np.array(sup_coo.col, dtype=np.int64)].data['support_{}'.format(idx)] = \
-            nd.array(sup_coo.data)
+                np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+            mx.nd.array(sup_coo.data, ctx=ctx)
 
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
@@ -101,7 +100,7 @@ def gen_bipartite():
 
     g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
     print("g.g_adj_scipy", g_adj_scipy.todense())
-    
+
     # print("g.edges('all', 'eid')", g.edges('all', 'eid'))
     # print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
     # print("g.edges('uv', 'eid')", g.edges('uv', 'eid'))
