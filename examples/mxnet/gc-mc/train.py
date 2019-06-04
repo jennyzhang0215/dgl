@@ -6,12 +6,12 @@ import string
 import numpy as np
 import mxnet as mx
 from mxnet import gluon
-from mxnet.gluon import nn
 from data import MovieLens
 from model import GCMCLayer, BiDecoder, InnerProductLayer
 from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
+from mxnet.gluon import nn, HybridBlock, Block
 
 
 def load_dataset(args):
@@ -32,7 +32,7 @@ def load_dataset(args):
 
     return dataset, feature_dict
 
-class Net(nn.Block):
+class Net(HybridBlock):
     def __init__(self, nratings, name_user, name_item, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._nratings = nratings
@@ -60,11 +60,11 @@ class Net(nn.Block):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def forward(self, uv_graph, vu_graph, rating_node_pairs):
+    def hybrid_forward(self, F, uv_graph, vu_graph, rating_node_pairs):
         output_l = self.encoder(uv_graph, vu_graph, "user", "movie")
         # Generate the predicted ratings
-        rating_user_fea = mx.nd.take(output_l[0], rating_node_pairs[0])
-        rating_item_fea = mx.nd.take(output_l[1], rating_node_pairs[1])
+        rating_user_fea = F.take(output_l[0], rating_node_pairs[0])
+        rating_item_fea = F.take(output_l[1], rating_node_pairs[1])
         pred_ratings = self.gen_ratings(rating_user_fea, rating_item_fea)
 
         return pred_ratings
