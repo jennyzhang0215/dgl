@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 from mxnet.gluon import nn, HybridBlock, Block
 from utils import get_activation
-
+import mxnet as mx
 
 class LayerDictionary(Block):
     def __init__(self, **kwargs):
@@ -17,7 +17,7 @@ class LayerDictionary(Block):
         super(LayerDictionary, self).__init__(**kwargs)
         self._key2idx = dict()
         with self.name_scope():
-            self._layers = nn.HybridSequential()
+            self._layers = nn.Sequential()
         self._nlayers = 0
 
     def __len__(self):
