@@ -8,7 +8,7 @@ import mxnet as mx
 from mxnet import gluon
 from mxnet.gluon import nn
 from data import MovieLens
-from layers import GCMCLayer, BiDecoder, InnerProductLayer
+from model import GCMCLayer, BiDecoder, InnerProductLayer
 from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
