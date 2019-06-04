@@ -49,7 +49,7 @@ class Net(nn.Block):
                                      dropout_rate=args.gcn_dropout,
                                      agg_accum=args.gcn_agg_accum,
                                      agg_act=args.model_activation,
-                                     out_act = args.gcn_out_accum,
+                                     out_act = args.model_activation,
                                      prefix='enc_')
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
