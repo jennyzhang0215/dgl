@@ -61,15 +61,16 @@ class MultiLinkGCNAggregator(Block):
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
-    def forward(self, g, dst_key):
-        def message_func(edges, **kwargs):
+    def forward(self, g, dst_key, **kwargs):
+
+        def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
                 w = kwargs['weight{}'.format(i)]
                 msg_dic['msg{}'.format(i)] = w * edges.src['h']* edges.data['support{}'.format(i)]
             return msg_dic
 
-        def reduce_func(nodes, **kwargs):
+        def reduce_func(nodes):
             out_l = []
             for i in range(self._num_links):
                 out_l.append(F.sum(nodes.mailbox['msg{}'.format(i)], 1)+\
@@ -83,7 +84,7 @@ class MultiLinkGCNAggregator(Block):
                 raise NotImplementedError
 
         def apply_node_func(nodes):
-            return {'h' : self._act(nodes.data['accum'])}
+            return {'h': self._act(nodes.data['accum'])}
 
         g.register_message_func(message_func)
         g[dst_key].register_reduce_func(reduce_func)
