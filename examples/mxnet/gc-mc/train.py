@@ -136,7 +136,7 @@ def train(args):
     rating_std = dataset.train_rating_values.std()
 
     uv_train_graph = dataset.uv_train_graph
-    uv_train_support_l = dataset.compute_support(uv_train_graph.adjacency_matrix_scipy("user", "movie", "rating"),
+    uv_train_support_l = dataset.compute_support(uv_train_graph.adjacency_matrix_scipy(("user", "movie", "rating")),
                                                  dataset.num_link, args.gcn_agg_norm_symm)
     for idx, support in enumerate(uv_train_support_l):
         sup_coo = support.tocoo()
@@ -149,7 +149,7 @@ def train(args):
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
 
     vu_train_graph = dataset.vu_train_graph
-    vu_train_support_l = dataset.compute_support(vu_train_graph.adjacency_matrix_scipy("movie", "user", "rating"),
+    vu_train_support_l = dataset.compute_support(vu_train_graph.adjacency_matrix_scipy(("movie", "user", "rating")),
                                                  dataset.num_link, args.gcn_agg_norm_symm)
     for idx, support in enumerate(vu_train_support_l):
         sup_coo = support.tocoo()

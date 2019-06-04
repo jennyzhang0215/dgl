@@ -74,12 +74,13 @@ def gen_bipartite():
     user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
     user_item_ratings = np.array([1,2,4,3,5,1,4,2,5])
-    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating1')]),
+    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating')]),
                               number_of_nodes_by_type = {'user': n_user, 'item': n_item},
-                              edge_connections_by_type = {('user', 'item', 'rating1'): (user_item_pair[0, :],
+                              edge_connections_by_type = {('user', 'item', 'rating'): (user_item_pair[0, :],
                                                                                        user_item_pair[1, :])},
                               readonly = True)
     g.edata["rating"] = user_item_ratings
+
 
     support_l = compute_support(user_item_R, num_link, sym)
     for idx, support in enumerate(support_l):
@@ -94,6 +95,13 @@ def gen_bipartite():
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     print("#ratings: {}".format(g.number_of_edges()))
+
+    g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
+    print("g.adj", g_adj)
+
+    g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
+    print("g.g_adj_scipy", g_adj_scipy.todense())
+    
     # print("g.edges('all', 'eid')", g.edges('all', 'eid'))
     # print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
     # print("g.edges('uv', 'eid')", g.edges('uv', 'eid'))
