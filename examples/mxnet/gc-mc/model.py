@@ -62,7 +62,6 @@ class MultiLinkGCNAggregator(Block):
                                                  init='zeros',
                                                  allow_deferred_init=True))
 
-
     def forward(self, g, dst_key, **kwargs):
         def message_func(edges):
             msg_dic = {}

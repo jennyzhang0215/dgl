@@ -132,8 +132,8 @@ def train(args):
     ### prepare data
     train_rating_pair = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
     nd_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
-    rating_mean = nd_gt_ratings.mean()
-    rating_std = nd_gt_ratings.std()
+    rating_mean = dataset.train_rating_values.mean()
+    rating_std = dataset.train_rating_values.std()
 
     ### declare the loss information
     best_valid_rmse = np.inf
