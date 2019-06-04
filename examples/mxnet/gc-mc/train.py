@@ -7,61 +7,33 @@ import numpy as np
 import mxnet as mx
 from mxnet import gluon
 from mxnet.gluon import nn
-
-from graph import HeterGraph, merge_node_ids_dict, set_seed
-from datasets import LoadData
-from layers import GCNLayer, BiDecoder, StackedGCNLayers, InnerProductLayer
-from iterators import DataIterator
+from data import MovieLens
+from layers import GCMCLayer, BiDecoder, InnerProductLayer
 from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
 
 
 def load_dataset(args):
-    dataset = LoadData(args.data_name, seed = args.seed,
-                       test_ratio = args.data_test_ratio,
-                       val_ratio = args.data_valid_ratio,
-                       force_download = False)
-    all_graph = dataset.graph
-    name_user = dataset.name_user
-    name_item = dataset.name_item
-    logging.info(dataset)
+    dataset = MovieLens(args.data_name)
     # !IMPORTANT. We need to check that ids in all_graph are continuous from 0 to #Node - 1.
     # We will later use these ids to take the embedding vectors
-    all_graph.check_continous_node_ids()
     feature_dict = dict()
-    nd_user_indices = mx.nd.arange(all_graph.features[name_user].shape[0], ctx=args.ctx)
-    nd_item_indices = mx.nd.arange(all_graph.features[name_item].shape[0], ctx=args.ctx)
-    user_item_total = all_graph.features[name_user].shape[0] + all_graph.features[name_item].shape[0]
-    feature_dict[name_user] = mx.nd.one_hot(nd_user_indices, user_item_total)
-    feature_dict[name_item] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
+    nd_user_indices = mx.nd.arange(dataset.user_features.shape[0], ctx=args.ctx)
+    nd_item_indices = mx.nd.arange(dataset.movie_features.shape[0], ctx=args.ctx)
+    user_item_total = dataset.user_features.shape[0] + dataset.movie_features.shape[0]
+    feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
+    feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
 
     info_line = "Feature dim: "
-    info_line += "\n" + name_user + ": {}".format(feature_dict[name_user].shape)
-    info_line += "\n" + name_item + ": {}".format(feature_dict[name_item].shape)
-    logging.info(info_line)
+    info_line += "\nUser: {}".format(feature_dict["user"].shape)
+    info_line += "\nMovie: {}".format(feature_dict["movie"].shape)
+    print(info_line)
 
-    return dataset, all_graph, feature_dict
-
-
-def gen_graph_sampler_args(meta_graph):
-    ret = dict()
-    for src_key in meta_graph:
-        for dst_key in meta_graph[src_key]:
-            ret[(src_key, dst_key)] = -1
-    return ret
-
-
-def gen_pair_key(src_key, dst_key):
-    if src_key < dst_key:
-        return src_key, dst_key
-    else:
-        return dst_key, src_key
-
-
+    return dataset, feature_dict
 
 class Net(nn.Block):
-    def __init__(self, all_graph, nratings, name_user, name_item, **kwargs):
+    def __init__(self, nratings, name_user, name_item, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._nratings = nratings
         self._name_user = name_user
@@ -69,25 +41,16 @@ class Net(nn.Block):
         self._act = get_activation(args.model_activation)
         with self.name_scope():
             # Construct Encoder
-            self.encoder = StackedGCNLayers(prefix='enc_')
-            with self.encoder.name_scope():
-                ### one layer GCN
-                self.encoder.add(GCNLayer(meta_graph=all_graph.meta_graph,
-                                          multi_link_structure=all_graph.get_multi_link_structure(),
-                                          dropout_rate=args.gcn_dropout,
-                                          agg_type='mean_pool', ## 'gcn', 'mean_pool', 'max_pool'
-                                          agg_units=args.gcn_agg_units,
-                                          out_units=args.gcn_out_units,
-                                          source_keys=all_graph.meta_graph.keys(),
-                                          agg_ordinal_sharing=args.gcn_agg_ordinal_share,
-                                          share_agg_weights=args.gcn_agg_share_weights,
-                                          agg_accum=args.gcn_agg_accum,
-                                          agg_act=args.model_activation,
-                                          accum_self=args.gcn_out_accum_self,
-                                          out_act=None,
-                                          layer_accum=args.gcn_out_accum,
-                                          layer_norm=False,
-                                          prefix='l0_'))
+            self.encoder = GCMCLayer(agg_units=args.gcn_agg_units,
+                                     out_units=args.gcn_out_units,
+                                     num_links=5,
+                                     src_key="user",
+                                     dst_key="movie",
+                                     dropout_rate=args.gcn_dropout,
+                                     agg_accum=args.gcn_agg_accum,
+                                     agg_act=args.model_activation,
+                                     out_act = args.gcn_out_accum,
+                                     prefix='enc_')
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
                                              out_units=nratings,
@@ -97,109 +60,58 @@ class Net(nn.Block):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def forward(self, graph, feature_dict, rating_node_pairs=None, graph_sampler_args=None, symm=None):
-        """
-
-        Parameters
-        ----------
-        graph : HeterGraph
-        feature_dict : dict
-            Dictionary contains the base features of all nodes
-        rating_node_pairs : np.ndarray or None
-            Shape: (2, #Edges), First row is user and the second row is item
-        graph_sampler_args : dict or None
-            Arguments for graph sampler
-        symm : bool
-            Whether to calculate the support in the symmetric formula
-
-        Returns
-        -------
-        pred_ratings : list of mx.nd.ndarray
-            The predicted ratings. If we use the stacked hourglass AE structure.
-             it will return a list with multiple predicted ratings
-        """
-        if symm is None:
-            symm = args.gcn_agg_norm_symm
-        ctx = next(iter(feature_dict.values())).context
-        req_node_ids_dict = dict()
-
-        uniq_node_ids_dict, encoder_fwd_indices = \
-            merge_node_ids_dict([{self._name_user: rating_node_pairs[0],
-                                  self._name_item: rating_node_pairs[1]},
-                                 req_node_ids_dict])
-        req_node_ids_dict, encoder_fwd_plan = self.encoder.gen_plan(graph=graph,
-                                                                    sel_node_ids_dict=uniq_node_ids_dict,
-                                                                    graph_sampler_args=graph_sampler_args,
-                                                                    symm=symm)
-
-        input_dict = dict()
-        for key, req_node_ids in req_node_ids_dict.items():
-            input_dict[key] = mx.nd.take(feature_dict[key],
-                                         mx.nd.array(req_node_ids, ctx=ctx, dtype=np.int32))
-
-        output_dict = self.encoder.heter_sage(input_dict, encoder_fwd_plan)
-        rating_idx_dict, req_idx_dict = encoder_fwd_indices
-
+    def forward(self, uv_graph, vu_graph, rating_node_pairs):
+        output_l = self.encoder(uv_graph, vu_graph, "user", "movie")
         # Generate the predicted ratings
-        assert rating_node_pairs is not None
-        rating_user_fea = mx.nd.take(output_dict[self._name_user],
-                                     mx.nd.array(rating_idx_dict[self._name_user], ctx=ctx, dtype=np.int32))
-        rating_item_fea = mx.nd.take(output_dict[self._name_item],
-                                     mx.nd.array(rating_idx_dict[self._name_item], ctx=ctx, dtype=np.int32))
+        rating_user_fea = mx.nd.take(output_l[0], rating_node_pairs[0])
+        rating_item_fea = mx.nd.take(output_l[1], rating_node_pairs[1])
         pred_ratings = self.gen_ratings(rating_user_fea, rating_item_fea)
 
         return pred_ratings
 
 
 
-def evaluate(args, net, feature_dict, data_iter, segment='valid'):
-    rating_mean = data_iter._train_ratings.mean()
-    rating_std = data_iter._train_ratings.std()
-    rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size, segment=segment,
-                                              sequential=True)
-    possible_rating_values = data_iter.possible_rating_values
-    nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-    eval_graph = data_iter.val_graph if segment == 'valid' else data_iter.test_graph
-    graph_sampler_args = gen_graph_sampler_args(data_iter.all_graph.meta_graph)
-    # Evaluate RMSE
-    cnt = 0
-    rmse = 0
-
-    for rating_node_pairs, gt_ratings in rating_sampler:
-        nd_gt_ratings = mx.nd.array(gt_ratings, dtype=np.float32, ctx=args.ctx)
-        cnt += rating_node_pairs.shape[1]
-        pred_ratings = net.forward(graph=eval_graph,
-                                   feature_dict=feature_dict,
-                                   rating_node_pairs=rating_node_pairs,
-                                   graph_sampler_args=graph_sampler_args,
-                                   symm=args.gcn_agg_norm_symm)
-        if args.gen_r_use_classification:
-            real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
-                                 nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
-            rmse += mx.nd.square(real_pred_ratings - nd_gt_ratings).sum().asscalar()
-        else:
-            rmse += mx.nd.square(mx.nd.clip(pred_ratings.reshape((-1,)) * rating_std + rating_mean,
-                                            possible_rating_values.min(),
-                                            possible_rating_values.max()) - nd_gt_ratings).sum().asscalar()
-    rmse  = np.sqrt(rmse / cnt)
-    return rmse
+# def evaluate(args, net, feature_dict, data_iter, segment='valid'):
+#     rating_mean = data_iter._train_ratings.mean()
+#     rating_std = data_iter._train_ratings.std()
+#     rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size, segment=segment,
+#                                               sequential=True)
+#     possible_rating_values = data_iter.possible_rating_values
+#     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
+#     eval_graph = data_iter.val_graph if segment == 'valid' else data_iter.test_graph
+#     graph_sampler_args = gen_graph_sampler_args(data_iter.all_graph.meta_graph)
+#     # Evaluate RMSE
+#     cnt = 0
+#     rmse = 0
+#
+#     for rating_node_pairs, gt_ratings in rating_sampler:
+#         nd_gt_ratings = mx.nd.array(gt_ratings, dtype=np.float32, ctx=args.ctx)
+#         cnt += rating_node_pairs.shape[1]
+#         pred_ratings = net.forward(graph=eval_graph,
+#                                    feature_dict=feature_dict,
+#                                    rating_node_pairs=rating_node_pairs,
+#                                    graph_sampler_args=graph_sampler_args,
+#                                    symm=args.gcn_agg_norm_symm)
+#         if args.gen_r_use_classification:
+#             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
+#                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
+#             rmse += mx.nd.square(real_pred_ratings - nd_gt_ratings).sum().asscalar()
+#         else:
+#             rmse += mx.nd.square(mx.nd.clip(pred_ratings.reshape((-1,)) * rating_std + rating_mean,
+#                                             possible_rating_values.min(),
+#                                             possible_rating_values.max()) - nd_gt_ratings).sum().asscalar()
+#     rmse  = np.sqrt(rmse / cnt)
+#     return rmse
 
 def train(args):
-    dataset, all_graph, feature_dict = load_dataset(args)
-    valid_node_pairs, _ = dataset.valid_data
-    test_node_pairs, _ = dataset.test_data
-    data_iter = DataIterator(all_graph=all_graph,
-                             name_user=dataset.name_user,
-                             name_item=dataset.name_item,
-                             test_node_pairs=test_node_pairs,
-                             valid_node_pairs=valid_node_pairs,
-                             seed=args.seed)
-    logging.info(data_iter)
+    dataset, feature_dict = load_dataset(args)
+
     ### build the net
-    possible_rating_values = data_iter.possible_rating_values
+    possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-    net = Net(all_graph=all_graph, nratings=possible_rating_values.size,
-              name_user=dataset.name_user, name_item=dataset.name_item)
+    net = Net(nratings=possible_rating_values.size,
+              name_user="user", name_item="movie",
+              args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
@@ -208,6 +120,7 @@ def train(args):
         rating_loss_net = gluon.loss.L2Loss()
     rating_loss_net.hybridize()
     trainer = gluon.Trainer(net.collect_params(), args.train_optimizer, {'learning_rate': args.train_lr})
+
     ### prepare the logger
     train_loss_logger = MetricLogger(['iter', 'loss', 'rmse', ], ['%d', '%.4f', '%.4f'],
                                      os.path.join(args.save_dir, 'train_loss%d.csv' % args.save_id))
@@ -215,12 +128,13 @@ def train(args):
                                      os.path.join(args.save_dir, 'valid_loss%d.csv' % args.save_id))
     test_loss_logger = MetricLogger(['iter', 'rmse'], ['%d', '%.4f'],
                                     os.path.join(args.save_dir, 'test_loss%d.csv' % args.save_id))
-    ### initialize the iterator
-    rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size,
-                                              segment='train')
-    graph_sampler_args = gen_graph_sampler_args(all_graph.meta_graph)
-    rating_mean = data_iter._train_ratings.mean()
-    rating_std = data_iter._train_ratings.std()
+
+    ### prepare data
+    train_rating_pair = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
+    nd_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
+    rating_mean = nd_gt_ratings.mean()
+    rating_std = nd_gt_ratings.std()
+
     ### declare the loss information
     best_valid_rmse = np.inf
     no_better_valid = 0
@@ -232,31 +146,19 @@ def train(args):
 
 
     for iter_idx in range(1, args.train_max_iter):
-        rating_node_pairs, gt_ratings = next(rating_sampler)
-        nd_gt_ratings = mx.nd.array(gt_ratings, ctx=args.ctx, dtype=np.float32)
         if args.gen_r_use_classification:
-            nd_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, gt_ratings),
+            nd_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, nd_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
-        iter_graph = data_iter.train_graph
-        ## remove the batch rating pair and link prediction pair (optional)
-        if rating_node_pairs.shape[1] < data_iter._train_node_pairs.shape[1] and args.model_remove_rating:
-            if iter_idx == 1:
-                logging.info("Removing training edges within the batch...")
-            iter_graph = iter_graph.remove_edges_by_id(src_key=dataset.name_user,
-                                                       dst_key=dataset.name_item,
-                                                       node_pair_ids=rating_node_pairs)
 
         with mx.autograd.record():
-            pred_ratings = net.forward(graph=iter_graph,
-                                       feature_dict=feature_dict,
-                                       rating_node_pairs=rating_node_pairs,
-                                       graph_sampler_args=graph_sampler_args,
-                                       symm=args.gcn_agg_norm_symm)
+            pred_ratings = net.forward(uv_graph=dataset.uv_train_graph,
+                                       vu_graph=dataset.vu_train_graph,
+                                       rating_node_pairs=train_rating_pair)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
                 loss = rating_loss_net(mx.nd.reshape(pred_ratings, shape=(-1,)),
-                                        (nd_gt_ratings - rating_mean) / rating_std ).mean()
+                                       (nd_gt_ratings - rating_mean) / rating_std ).mean()
             loss.backward()
 
         count_loss += loss.asscalar()
@@ -265,8 +167,8 @@ def train(args):
         trainer.step(1.0) #, ignore_stale_grad=True)
 
         if iter_idx == 1:
-            logging.info("Total #Param of net: %d" % (gluon_total_param_num(net)))
-            logging.info(gluon_net_info(net, save_path=os.path.join(args.save_dir, 'net%d.txt' % args.save_id)))
+            print("Total #Param of net: %d" % (gluon_total_param_num(net)))
+            print(gluon_net_info(net, save_path=os.path.join(args.save_dir, 'net%d.txt' % args.save_id)))
 
         if args.gen_r_use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
@@ -285,41 +187,41 @@ def train(args):
             avg_gnorm = 0
             count_rmse = 0
             count_num = 0
-
-        if iter_idx % args.train_valid_interval == 0:
-            valid_rmse = evaluate(args=args,
-                                  net=net,
-                                  feature_dict=feature_dict,
-                                  data_iter=data_iter,
-                                  segment='valid')
-            valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
-            logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
-
-            if valid_rmse < best_valid_rmse:
-                best_valid_rmse = valid_rmse
-                no_better_valid = 0
-                best_iter = iter_idx
-                #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
-                test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, data_iter=data_iter, segment='test')
-                best_test_rmse = test_rmse
-                test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
-                logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
-            else:
-                no_better_valid += 1
-                if no_better_valid > args.train_early_stopping_patience\
-                    and trainer.learning_rate <= args.train_min_lr:
-                    logging.info("Early stopping threshold reached. Stop training.")
-                    break
-                if no_better_valid > args.train_decay_patience:
-                    new_lr = max(trainer.learning_rate * args.train_lr_decay_factor, args.train_min_lr)
-                    if new_lr < trainer.learning_rate:
-                        logging.info("\tChange the LR to %g" % new_lr)
-                        trainer.set_learning_rate(new_lr)
-                        no_better_valid = 0
+    #
+    #     if iter_idx % args.train_valid_interval == 0:
+    #         valid_rmse = evaluate(args=args,
+    #                               net=net,
+    #                               feature_dict=feature_dict,
+    #                               data_iter=data_iter,
+    #                               segment='valid')
+    #         valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
+    #         logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
+    #
+    #         if valid_rmse < best_valid_rmse:
+    #             best_valid_rmse = valid_rmse
+    #             no_better_valid = 0
+    #             best_iter = iter_idx
+    #             #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
+    #             test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, data_iter=data_iter, segment='test')
+    #             best_test_rmse = test_rmse
+    #             test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
+    #             logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
+    #         else:
+    #             no_better_valid += 1
+    #             if no_better_valid > args.train_early_stopping_patience\
+    #                 and trainer.learning_rate <= args.train_min_lr:
+    #                 logging.info("Early stopping threshold reached. Stop training.")
+    #                 break
+    #             if no_better_valid > args.train_decay_patience:
+    #                 new_lr = max(trainer.learning_rate * args.train_lr_decay_factor, args.train_min_lr)
+    #                 if new_lr < trainer.learning_rate:
+    #                     logging.info("\tChange the LR to %g" % new_lr)
+    #                     trainer.set_learning_rate(new_lr)
+    #                     no_better_valid = 0
         if iter_idx  % args.train_log_interval == 0:
             logging.info(logging_str)
-    logging.info('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
-        best_iter, best_valid_rmse, best_test_rmse))
+    # logging.info('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
+    #     best_iter, best_valid_rmse, best_test_rmse))
 
     train_loss_logger.close()
     valid_loss_logger.close()
@@ -389,9 +291,8 @@ def config():
 if __name__ == '__main__':
     os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
     args = config()
-    logging_config(folder=args.save_dir, name='log', no_console=args.silent)
+    #logging_config(folder=args.save_dir, name='log', no_console=args.silent)
     ### TODO save the args
     np.random.seed(args.seed)
     mx.random.seed(args.seed, args.ctx)
-    set_seed(args.seed)
     train(args)

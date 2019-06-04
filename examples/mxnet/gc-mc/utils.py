@@ -13,61 +13,6 @@ from sklearn.multioutput import MultiOutputClassifier
 from sklearn.linear_model import SGDClassifier
 
 
-class ExponentialMovingAverage(object):
-    def __init__(self, decay=0.999, num_updates=None, dynamic_decay=False, params=None, ctx=None):
-        """Maintain a set of shadow variables "v" that is calculated by
-
-        v[:] -= (1 - decay) * (v - param)
-
-        Parameters
-        ----------
-        decay : float
-        num_updates : int or None
-            The number of total training updates. It will affect the decay.
-        dynamic_decay : bool
-            Whether the decay is related to the updating steps
-            If dynamic_decay is False:
-                decay = min(decay, (1.0 + num_updates) / (10.0 + num_updates))
-            Else:
-                decay = 1.0 / (step + 1) # Step starts with 0
-        params : ParameterDict or None
-            The initial parameters. If it's None, it will be set based by self.initialize()
-        ctx : None or mx.context.Context
-        """
-        self._decay = decay
-        self._num_updates = num_updates
-        self._dynamic_decay = dynamic_decay
-        self._ctx = ctx
-        self._initialized = False
-        self._average_params = None
-        self._step = -1
-        if params is not None:
-            self.initialize(params)
-
-    def initialize(self, params):
-        """
-
-        Parameters
-        ----------
-        params : gluon.parameter.ParameterDict
-
-        """
-        self._initialized = True
-        self._average_params = copy_params_to_nd(params, self._ctx)
-
-    def step(self, params):
-        self._step += 1
-        if self._dynamic_decay:
-            decay = 1.0 / (self._step + 1.0)
-        else:
-            decay = min(self._decay, (1.0 + self._num_updates) / (10.0 + self._num_updates))
-        for name, average_param in self._average_params.items():
-            average_param[:] += decay * (params[name].data(self._ctx) - average_param)
-
-    def copy_to(self, params):
-        copy_nd_to_params(self._average_params, params)
-
-
 def copy_params_to_nd(params, ctx=None):
     return {k: v.data(ctx).copy() for k, v in params.items()}
 
@@ -304,3 +249,31 @@ def sklearn_logistic_regression(dataname,
     test_f1 = f1_score(y_true=test_labels, y_pred=test_pred, average='micro')
 
     return train_acc, train_f1, valid_acc, valid_f1, test_acc, test_f1
+
+
+def get_activation(act):
+    """Get the activation based on the act string
+
+    Parameters
+    ----------
+    act: str or HybridBlock
+
+    Returns
+    -------
+    ret: HybridBlock
+    """
+    if act is None:
+        return lambda x: x
+    if isinstance(act, str):
+        if act == 'leaky':
+            return nn.LeakyReLU(0.1)
+        elif act == 'identity':
+            return IdentityActivation()
+        elif act == 'elu':
+            return ELU()
+        elif act in ['relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']:
+            return nn.Activation(act)
+        else:
+            raise NotImplementedError
+    else:
+        return act

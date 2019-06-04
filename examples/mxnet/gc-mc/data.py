@@ -25,7 +25,6 @@ _tokenizer = nlp.data.transforms.SpacyTokenizer()
 class MovieLens(object):
     def __init__(self, name):
         self.name = name
-
         print("Starting processing {} ...".format(self.name))
         self._load_raw_user_info()
         self._load_raw_movie_info()
@@ -67,48 +66,29 @@ class MovieLens(object):
         print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
         print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
-
-        user_movie_ratings_coo = sp.coo_matrix(
-            (self.all_rating_info["rating"].values.astype(np.float32),
-             (np.array([global_user_id_map[ele] for ele in self.all_rating_info["user_id"]], dtype=np.int64),
-              np.array([global_movie_id_map[ele] for ele in self.all_rating_info["movie_id"]], dtype=np.int64))),
-            shape=(len(global_user_id_map), len(global_movie_id_map)),
-            dtype = np.float32)
-        #movie_user_ratings_coo = user_movie_ratings_coo.transpose()
-        self.all_graph = dgl.DGLBipartiteGraph(
-            metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
-            number_of_nodes_by_type={'user': len(global_user_id_map),
-                                     'movie': len(global_movie_id_map)},
-            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo},
-            node_frame={"user": self.user_features, "movie": self.movie_features},
-            readonly=True)
-
-        # self.all_graph = hetergraph.DGLBipartiteGraph(
-        #     metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
-        #                              ('movie', 'user', 'rating')]),
-        #     number_of_nodes_by_type={'user': len(global_user_id_map),
-        #                              'movie': len(global_movie_id_map)},
-        #     edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
-        #                               ('movie', 'user', 'rating'): movie_user_ratings_coo},
-        #     node_frame={"user": self.user_features, "movie": self.movie_features})
-
-
-
-
-
+        self.train_rating_pairs = (np.array([global_user_id_map[ele]
+                                             for ele in self.train_rating_info["user_id"]], dtype=np.int64),
+                                   np.array([global_movie_id_map[ele]
+                                             for ele in self.train_rating_info["movie_id"]], dtype=np.int64))
+        self.train_rating_values = self.train_rating_info["rating"].values.astype(np.float32)
         user_movie_train_ratings_coo = sp.coo_matrix(
-            (self.train_rating_info["rating"].values.astype(np.float32),
-             (np.array([global_user_id_map[ele] for ele in self.train_rating_info["user_id"]], dtype=np.int64),
-              np.array([global_movie_id_map[ele] for ele in self.train_rating_info["movie_id"]], dtype=np.int64))),
+            (self.train_rating_values, self.train_rating_pairs),
             shape=(len(global_user_id_map), len(global_movie_id_map)),
             dtype=np.float32)
-        #movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
-        self.train_graph = dgl.DGLBipartiteGraph(
+        movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
+        self.uv_train_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
             number_of_nodes_by_type={'user': len(global_user_id_map),
                                      'movie': len(global_movie_id_map)},
             edge_connections_by_type={('user', 'movie', 'rating'): user_movie_train_ratings_coo},
-            node_frame={"user": self.user_features, "movie": self.movie_features},
+            # node_frame={"user": self.user_features, "movie": self.movie_features},
+            readonly=True)
+        self.vu_train_graph = dgl.DGLBipartiteGraph(
+            metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
+            number_of_nodes_by_type={'user': len(global_user_id_map),
+                                     'movie': len(global_movie_id_map)},
+            edge_connections_by_type={('movie', 'user', 'rating'): movie_user_train_ratings_coo},
+            # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
         # self.train_graph = hetergraph.DGLBipartiteGraph(
@@ -120,8 +100,10 @@ class MovieLens(object):
         #                               ('movie', 'user', 'rating'): movie_user_train_ratings_coo},
         #     node_frame={"user": self.user_features, "movie": self.movie_features})
 
+    @property
+    def possible_rating_values(self):
+        return np.unique(self.train_rating_info["rating"].values)
 
-    ### check whether the user/items in info all appear in the rating
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
         print("  -----------------")
         print("{}: {}(reserved) v.s. {}(from info)".format(label, len(reserved_ids_set),
@@ -138,7 +120,6 @@ class MovieLens(object):
         else:
             orign_info = orign_info.reset_index(drop=True)
             return orign_info
-
 
     def _load_raw_rates(self, file_path, sep):
         """In MovieLens, the rates have the following format
@@ -165,7 +146,6 @@ class MovieLens(object):
             dtype={'user_id': np.int32, 'movie_id' : np.int32,
                    'ratings': np.float32, 'timestamp': np.int64}, engine='python')
         return rating_info
-
 
     def _load_raw_user_info(self):
         """In MovieLens, the user attributes file have the following formats:
@@ -203,7 +183,6 @@ class MovieLens(object):
         else:
             raise NotImplementedError
 
-
     def _process_user_fea(self):
         """
 
@@ -236,7 +215,6 @@ class MovieLens(object):
             self.user_features = np.zeros(shape=(self.user_info.shape[0], 1), dtype=np.float32)
         else:
             raise NotImplementedError
-
 
     def _load_raw_movie_info(self):
         """In MovieLens, the movie attributes may have the following formats:
