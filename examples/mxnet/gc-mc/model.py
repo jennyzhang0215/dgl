@@ -1,9 +1,7 @@
-from mxnet as gluon
 import mxnet.ndarray as F
 import numpy as np
 import warnings
 from mxnet.gluon import nn, HybridBlock, Block
-
 from utils import get_activation
 
 
