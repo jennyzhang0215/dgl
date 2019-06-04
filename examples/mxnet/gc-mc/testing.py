@@ -89,7 +89,7 @@ def gen_bipartite():
     g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
     print("g.g_adj_scipy", g_adj_scipy.todense())
 
-    
+
 
     support_l = compute_support(user_item_R, num_link, sym)
     for idx, support in enumerate(support_l):
