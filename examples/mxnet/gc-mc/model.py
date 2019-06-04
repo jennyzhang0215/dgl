@@ -61,16 +61,15 @@ class MultiLinkGCNAggregator(Block):
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
-
-    def forward(self, g, dst_key, **kwargs):
-        def message_func(edges):
+    def forward(self, g, dst_key):
+        def message_func(edges, **kwargs):
             msg_dic = {}
             for i in range(self._num_links):
                 w = kwargs['weight{}'.format(i)]
                 msg_dic['msg{}'.format(i)] = w * edges.src['h']* edges.data['support{}'.format(i)]
             return msg_dic
 
-        def reduce_func(nodes):
+        def reduce_func(nodes, **kwargs):
             out_l = []
             for i in range(self._num_links):
                 out_l.append(F.sum(nodes.mailbox['msg{}'.format(i)], 1)+\
