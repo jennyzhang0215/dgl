@@ -79,7 +79,17 @@ def gen_bipartite():
                                                                                        user_item_pair[1, :])},
                               readonly = True)
     g.edata["rating"] = user_item_ratings
+    print("#users: {}".format(g['user'].number_of_nodes()))
+    print("#items: {}".format(g['item'].number_of_nodes()))
+    print("#ratings: {}".format(g.number_of_edges()))
 
+    g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
+    print("g.adj", g_adj)
+
+    g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
+    print("g.g_adj_scipy", g_adj_scipy.todense())
+
+    
 
     support_l = compute_support(user_item_R, num_link, sym)
     for idx, support in enumerate(support_l):
@@ -91,15 +101,7 @@ def gen_bipartite():
                 np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
             mx.nd.array(sup_coo.data, ctx=ctx)
 
-    print("#users: {}".format(g['user'].number_of_nodes()))
-    print("#items: {}".format(g['item'].number_of_nodes()))
-    print("#ratings: {}".format(g.number_of_edges()))
 
-    g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
-    print("g.adj", g_adj)
-
-    g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
-    print("g.g_adj_scipy", g_adj_scipy.todense())
 
     # print("g.edges('all', 'eid')", g.edges('all', 'eid'))
     # print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
