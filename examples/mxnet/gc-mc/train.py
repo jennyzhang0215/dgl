@@ -280,7 +280,7 @@ def config():
     if args.save_dir is None:
         args.save_dir = args.data_name+"_" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
     if args.save_id is None:
-        args.save_id = random.randint(20)
+        args.save_id = np.random.randint(20)
     args.save_dir = os.path.join("log", args.save_dir)
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
