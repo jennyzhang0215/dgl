@@ -62,20 +62,19 @@ class MultiLinkGCNAggregator(Block):
                                                  init='zeros',
                                                  allow_deferred_init=True))
     def forward(self, g, dst_key, **kwargs):
-
+        w, bias = kwargs['weight0'], kwargs['bias0']
         def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
                 w = kwargs['weight{}'.format(i)]
-                msg_dic['msg{}'.format(i)] = w * edges.src['h']* edges.data['support{}'.format(i)]
+                msg_dic['msg{}'.format(i)] = w * edges.src['h'] * edges.data['support{}'.format(i)]
             return msg_dic
 
         def reduce_func(nodes):
             out_l = []
             for i in range(self._num_links):
-                out_l.append(F.sum(nodes.mailbox['msg{}'.format(i)], 1)+\
-                             kwargs['bias{}'.format(i)]
-)
+                b = kwargs['bias{}'.format(i)]
+                out_l.append(F.sum(nodes.mailbox['msg{}'.format(i)], 1) + b)
             if self._accum == "sum":
                 return {'accum': F.add_n(*out_l)}
             elif self._accum == "stack":
