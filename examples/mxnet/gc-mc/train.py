@@ -135,6 +135,30 @@ def train(args):
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
 
+    uv_train_graph = dataset.uv_train_graph
+    uv_train_support_l = dataset.compute_support(uv_train_graph.adjacency_matrix_scipy("user", "movie", "rating"),
+                                                 dataset.num_link, args.gcn_agg_norm_symm)
+    for idx, support in enumerate(uv_train_support_l):
+        sup_coo = support.tocoo()
+        uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+            mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
+    # uv_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
+    # uv_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
+    uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
+    uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+
+    vu_train_graph = dataset.vu_train_graph
+    vu_train_support_l = dataset.compute_support(vu_train_graph.adjacency_matrix_scipy("movie", "user", "rating"),
+                                                 dataset.num_link, args.gcn_agg_norm_symm)
+    for idx, support in enumerate(vu_train_support_l):
+        sup_coo = support.tocoo()
+        vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+            mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
+    vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+    vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
+
     ### declare the loss information
     best_valid_rmse = np.inf
     no_better_valid = 0
@@ -151,8 +175,8 @@ def train(args):
                                       ctx=args.ctx, dtype=np.int32)
 
         with mx.autograd.record():
-            pred_ratings = net.forward(uv_graph=dataset.uv_train_graph,
-                                       vu_graph=dataset.vu_train_graph,
+            pred_ratings = net.forward(uv_graph=uv_train_graph,
+                                       vu_graph=vu_train_graph,
                                        rating_node_pairs=train_rating_pair)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
