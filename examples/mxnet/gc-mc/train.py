@@ -136,6 +136,7 @@ def train(args):
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
 
+    print("Start preparing graph ...")
     uv_train_graph = dataset.uv_train_graph
     uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
@@ -143,7 +144,8 @@ def train(args):
     vu_train_graph = dataset.vu_train_graph
     vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
     vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
-
+    print("Preparing data finished ...\n")
+    
     ### declare the loss information
     best_valid_rmse = np.inf
     no_better_valid = 0
@@ -152,6 +154,8 @@ def train(args):
     count_rmse = 0
     count_num = 0
     count_loss = 0
+
+    print("Start training ...")
 
     for iter_idx in range(1, args.train_max_iter):
         if args.gen_r_use_classification:
