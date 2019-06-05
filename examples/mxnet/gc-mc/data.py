@@ -100,14 +100,14 @@ class MovieLens(object):
             # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
-        uv_train_support_l = self.compute_support(user_movie_train_R, self.num_link, symm)
+        uv_train_support_l = self.compute_support(user_movie_train_R, self.num_links, symm)
         for idx, support in enumerate(uv_train_support_l):
             sup_coo = support.tocoo()
             self.uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
                                       np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
                 mx.nd.array(sup_coo.data, ctx=ctx, dtype=np.float32)
 
-        vu_train_support_l = self.compute_support(movie_user_train_R, self.num_link, self._symm)
+        vu_train_support_l = self.compute_support(movie_user_train_R, self.num_links, self._symm)
         for idx, support in enumerate(vu_train_support_l):
             sup_coo = support.tocoo()
             self.vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
@@ -119,7 +119,7 @@ class MovieLens(object):
         return np.unique(self.train_rating_info["rating"].values)
 
     @property
-    def num_link(self):
+    def num_links(self):
         return self.possible_rating_values.size
 
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
@@ -323,10 +323,10 @@ class MovieLens(object):
             self.movie_features = np.concatenate((title_embedding, (release_years - 1950.0) / 100.0), axis=1)
 
 
-    def compute_support(self, adj, num_link, symmetric):
+    def compute_support(self, adj, num_links, symmetric):
         adj_unnormalized_l = []
         adj_train_int = sp.csr_matrix(adj, dtype=np.int32)
-        for i in range(num_link):
+        for i in range(num_links):
             # build individual binary rating matrices (supports) for each rating
             adj_unnormalized = sp.csr_matrix(adj_train_int == i + 1, dtype=np.float32)
             adj_unnormalized_l.append(adj_unnormalized)

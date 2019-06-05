@@ -32,19 +32,18 @@ def load_dataset(args):
     return dataset, feature_dict
 
 class Net(HybridBlock):
-    def __init__(self, nratings, name_user, name_item, num_link, args, **kwargs):
+    def __init__(self, uv_graph, vu_graph, src_key, dst_key, nratings, num_links, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._nratings = nratings
-        self._name_user = name_user
-        self._name_item = name_item
-        self._num_link = num_link
         self._act = get_activation(args.model_activation)
         with self.name_scope():
-            self.encoder = GCMCLayer(agg_units=args.gcn_agg_units,
+            self.encoder = GCMCLayer(uv_graph=uv_graph,
+                                     vu_graph=vu_graph,
+                                     src_key=src_key,
+                                     dst_key=dst_key,
+                                     agg_units=args.gcn_agg_units,
                                      out_units=args.gcn_out_units,
-                                     num_links=num_link,
-                                     src_key="user",
-                                     dst_key="movie",
+                                     num_links=num_links,
                                      dropout_rate=args.gcn_dropout,
                                      agg_accum=args.gcn_agg_accum,
                                      agg_act=args.model_activation,
@@ -59,10 +58,9 @@ class Net(HybridBlock):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def hybrid_forward(self, F, user_fea, movie_fea, uv_graph, vu_graph, rating_node_pairs):
+    def hybrid_forward(self, F, user_fea, movie_fea, rating_node_pairs):
 
-        user_out, movie_out = self.encoder(user_fea, movie_fea, uv_graph, vu_graph,
-                                           self._name_user, self._name_item)
+        user_out, movie_out = self.encoder(user_fea, movie_fea)
         # Generate the predicted ratings
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
         rating_item_fea = mx.nd.take(movie_out, rating_node_pairs[1])
@@ -107,12 +105,31 @@ class Net(HybridBlock):
 def train(args):
     dataset, feature_dict = load_dataset(args)
     print("Loading data finished ...\n")
-    ### build the net
+
+    ### prepare data
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-    net = Net(nratings=possible_rating_values.size,
-              name_user="user", name_item="movie",
-              num_link=dataset.num_link, args=args)
+
+    train_rating_pair = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
+    nd_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
+    rating_mean = dataset.train_rating_values.mean()
+    rating_std = dataset.train_rating_values.std()
+
+    print("Start preparing graph ...")
+    uv_train_graph = dataset.uv_train_graph
+    vu_train_graph = dataset.vu_train_graph
+    user_input = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
+    print("Preparing data finished ...\n")
+
+    ### build the net
+    net = Net(uv_graph=uv_train_graph,
+              vu_graph=vu_train_graph,
+              src_key=dataset._num_user,
+              dst_key=dataset._num_movie,
+              nratings=possible_rating_values.size,
+              num_links=dataset.num_link,
+              args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
@@ -130,19 +147,6 @@ def train(args):
                                      os.path.join(args.save_dir, 'valid_loss%d.csv' % args.save_id))
     test_loss_logger = MetricLogger(['iter', 'rmse'], ['%d', '%.4f'],
                                     os.path.join(args.save_dir, 'test_loss%d.csv' % args.save_id))
-
-    ### prepare data
-    train_rating_pair = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
-    nd_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
-    rating_mean = dataset.train_rating_values.mean()
-    rating_std = dataset.train_rating_values.std()
-
-    print("Start preparing graph ...")
-    uv_train_graph = dataset.uv_train_graph
-    vu_train_graph = dataset.vu_train_graph
-    user_input = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
-    print("Preparing data finished ...\n")
 
     ### declare the loss information
     best_valid_rmse = np.inf

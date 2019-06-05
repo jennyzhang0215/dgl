@@ -40,15 +40,18 @@ class LayerDictionary(HybridBlock):
 
 
 class MultiLinkGCNAggregator(HybridBlock):
-    def __init__(self, units, num_links,
+    def __init__(self, g, src_key, dst_key, units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
 
         with self.name_scope():
-            self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
+            self.g = g
+            self._src_key = src_key
+            self._dst_key = dst_key
             self._accum = accum
             self._num_links = num_links
-            self._act = get_activation(act)
+            self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
+            self.act = get_activation(act)
             for i in range(num_links):
                 self.__setattr__('weight{}'.format(i),
                                  self.params.get('weight{}'.format(i),
@@ -61,9 +64,12 @@ class MultiLinkGCNAggregator(HybridBlock):
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
-    def hybrid_forward(self, F, src_input, dst_input, g, src_key, dst_key, **kwargs):
-        g[src_key].ndata['h'] = src_input
-        g[dst_key].ndata['h'] = dst_input
+
+    def hybrid_forward(self, F, src_input, dst_input, **kwargs):
+        src_input = self.dropout(src_input)
+        dst_input = self.dropout(dst_input)
+        self.g[self._src_key].ndata['h'] = src_input
+        self.g[self._dst_key].ndata['h'] = dst_input
         def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
@@ -86,34 +92,43 @@ class MultiLinkGCNAggregator(HybridBlock):
         def apply_node_func(nodes):
             return {'h': self._act(nodes.data['accum'])}
 
-        g.register_message_func(message_func)
-        g[dst_key].register_reduce_func(reduce_func)
-        g[dst_key].register_apply_node_func(apply_node_func)
-        g.send_and_recv(g.edges('uv', 'srcdst'))
+        self.g.register_message_func(message_func)
+        self.g[self._dst_key].register_reduce_func(reduce_func)
+        self.g[self._dst_key].register_apply_node_func(apply_node_func)
+        self.g.send_and_recv(self.g.edges('uv', 'srcdst'))
 
-        h = g[dst_key].ndata.pop('h')
+        h = self.g[self._dst_key].ndata.pop('h')
         return h
 
 
 class GCMCLayer(HybridBlock):
-    def __init__(self, agg_units, out_units, num_links, src_key, dst_key,
-                 dropout_rate=0.0, agg_accum='stack', agg_act=None,
-                 agg_ordinal_sharing=False, share_agg_weights=False,
-                 share_out_fc_weights = False, out_act = None,
+    def __init__(self, uv_graph, vu_graph, src_key, dst_key, agg_units, out_units, num_links,
+                 dropout_rate=0.0, agg_accum='stack', agg_act=None, out_act=None,
+                 agg_ordinal_sharing=False, share_agg_weights=False, share_out_fc_weights=False,
                  **kwargs):
         super(GCMCLayer, self).__init__(**kwargs)
         self._out_act = get_activation(out_act)
+        self.uv_graph = uv_graph
+        self.vu_graph = vu_graph
+        self._src_key = src_key
+        self._dst_key = dst_key
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self._aggregators = LayerDictionary(prefix='agg_')
             with self._aggregators.name_scope():
-                self._aggregators[(src_key, dst_key)] = MultiLinkGCNAggregator(units = agg_units,
+                self._aggregators[(src_key, dst_key)] = MultiLinkGCNAggregator(g=uv_graph,
+                                                                               src_key=src_key,
+                                                                               dst_key=dst_key,
+                                                                               units = agg_units,
                                                                                num_links=num_links,
                                                                                dropout_rate=dropout_rate,
                                                                                accum=agg_accum,
                                                                                act=agg_act,
                                                                                prefix='{}_{}_'.format(src_key, dst_key))
-                self._aggregators[(dst_key, src_key)] = MultiLinkGCNAggregator(units=agg_units,
+                self._aggregators[(dst_key, src_key)] = MultiLinkGCNAggregator(g=vu_graph,
+                                                                               src_key=dst_key,
+                                                                               dst_key=src_key,
+                                                                               units=agg_units,
                                                                                num_links=num_links,
                                                                                dropout_rate=dropout_rate,
                                                                                accum=agg_accum,
@@ -128,11 +143,12 @@ class GCMCLayer(HybridBlock):
 
             self._out_act = get_activation(out_act)
 
-    def hybrid_forward(self, F, user_fea, movie_fea, user2movie_g, movie2user_g, user_key, movie_key):
-        movie_h = self._aggregators[(user_key, movie_key)](user_fea, movie_fea, user2movie_g, user_key, movie_key)
-        user_h = self._aggregators[(movie_key, user_key)](movie_fea, user_fea, movie2user_g, movie_key, user_key)
-        out_user = self._out_act(self._out_fcs[user_key](user_h))
-        out_movie = self._out_act(self._out_fcs[movie_key](movie_h))
+    def hybrid_forward(self, F, user_fea, movie_fea):
+        movie_h = self._aggregators[(self._src_key, self._dst_key)](user_fea, movie_fea)
+        user_h = self._aggregators[(self._dst_key, self._src_key)](movie_fea, user_fea)
+        out_user = self._out_act(self._out_fcs[self._src_key](user_h))
+        out_movie = self._out_act(self._out_fcs[self._dst_key](movie_h))
+
         return out_user, out_movie
 
 
