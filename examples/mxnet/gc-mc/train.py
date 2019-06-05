@@ -12,6 +12,7 @@ from utils import get_activation, parse_ctx, \
     gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
 from mxnet.gluon import nn, HybridBlock, Block
+from dgl import DGLError
 
 
 def load_dataset(args):
@@ -120,7 +121,7 @@ def train(args):
     rating_loss_net.hybridize()
     trainer = gluon.Trainer(net.collect_params(), args.train_optimizer, {'learning_rate': args.train_lr})
     print("Loading network finished ...\n")
-    
+
     ### prepare the logger
     train_loss_logger = MetricLogger(['iter', 'loss', 'rmse'], ['%d', '%.4f', '%.4f'],
                                      os.path.join(args.save_dir, 'train_loss%d.csv' % args.save_id))
@@ -136,8 +137,9 @@ def train(args):
     rating_std = dataset.train_rating_values.std()
 
     uv_train_graph = dataset.uv_train_graph
-    uv_train_support_l = dataset.compute_support(uv_train_graph.adjacency_matrix_scipy(("user", "movie", "rating")),
-                                                 dataset.num_link, args.gcn_agg_norm_symm)
+    uv_train_support_l = dataset.compute_support(
+        uv_train_graph.adjacency_matrix_scipy(("user", "movie", "rating")).transpose,
+        dataset.num_link, args.gcn_agg_norm_symm)
     for idx, support in enumerate(uv_train_support_l):
         sup_coo = support.tocoo()
         uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
@@ -147,8 +149,9 @@ def train(args):
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
 
     vu_train_graph = dataset.vu_train_graph
-    vu_train_support_l = dataset.compute_support(vu_train_graph.adjacency_matrix_scipy(("movie", "user", "rating")),
-                                                 dataset.num_link, args.gcn_agg_norm_symm)
+    vu_train_support_l = dataset.compute_support(
+        vu_train_graph.adjacency_matrix_scipy(("movie", "user", "rating")).transpose,
+        dataset.num_link, args.gcn_agg_norm_symm)
     for idx, support in enumerate(vu_train_support_l):
         sup_coo = support.tocoo()
         vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
