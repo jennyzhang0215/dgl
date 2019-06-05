@@ -6,7 +6,7 @@ import scipy.sparse as sp
 import gluonnlp as nlp
 import networkx as nx
 import dgl
-import mxnet.ndarray as nd
+import mxnet as mx
 
 READ_DATASET_PATH = os.path.join("data_set")
 GENRES_ML_100K =\
@@ -21,8 +21,9 @@ _word_embedding = nlp.embedding.GloVe('glove.840B.300d')
 _tokenizer = nlp.data.transforms.SpacyTokenizer()
 
 class MovieLens(object):
-    def __init__(self, name, symm=True):
+    def __init__(self, name, ctx, symm=True):
         self._name = name
+        self._ctx = ctx
         self._symm = symm
         print("Starting processing {} ...".format(self._name))
         self._load_raw_user_info()
@@ -73,7 +74,9 @@ class MovieLens(object):
         user_movie_train_ratings_coo = sp.coo_matrix(
             (self.train_rating_values, self.train_rating_pairs),
             shape=(len(global_user_id_map), len(global_movie_id_map)),dtype=np.float32)
+        user_movie_train_R = user_movie_train_ratings_coo.toarray()
         movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
+        movie_user_train_R = movie_user_train_ratings_coo.toarray()
 
         self.uv_train_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
@@ -91,6 +94,19 @@ class MovieLens(object):
             # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
+        uv_train_support_l = self.compute_support(user_movie_train_R, self.num_link, symm)
+        for idx, support in enumerate(uv_train_support_l):
+            sup_coo = support.tocoo()
+            self.uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                                      np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup_coo.data, ctx=ctx, dtype=np.float32)
+
+        vu_train_support_l = self.compute_support(movie_user_train_R, self.num_link, self._symm)
+        for idx, support in enumerate(vu_train_support_l):
+            sup_coo = support.tocoo()
+            self.vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                                      np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup_coo.data, ctx=ctx, dtype=np.float32)
 
     @property
     def possible_rating_values(self):

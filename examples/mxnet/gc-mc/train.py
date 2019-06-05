@@ -137,26 +137,10 @@ def train(args):
     rating_std = dataset.train_rating_values.std()
 
     uv_train_graph = dataset.uv_train_graph
-    uv_train_support_l = dataset.compute_support(
-        uv_train_graph.adjacency_matrix_scipy(("user", "movie", "rating")).transpose,
-        dataset.num_link, args.gcn_agg_norm_symm)
-    for idx, support in enumerate(uv_train_support_l):
-        sup_coo = support.tocoo()
-        uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-            mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
     uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
 
     vu_train_graph = dataset.vu_train_graph
-    vu_train_support_l = dataset.compute_support(
-        vu_train_graph.adjacency_matrix_scipy(("movie", "user", "rating")).transpose,
-        dataset.num_link, args.gcn_agg_norm_symm)
-    for idx, support in enumerate(vu_train_support_l):
-        sup_coo = support.tocoo()
-        vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-            mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
     vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
     vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
 
