@@ -59,7 +59,6 @@ class Net(HybridBlock):
 
 
     def hybrid_forward(self, F, user_fea, movie_fea, rating_node_pairs):
-
         user_out, movie_out = self.encoder(user_fea, movie_fea)
         # Generate the predicted ratings
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
@@ -165,7 +164,7 @@ def train(args):
                                       ctx=args.ctx, dtype=np.int32)
 
         with mx.autograd.record():
-            pred_ratings = net(user_input, movie_input, uv_train_graph, vu_train_graph, train_rating_pair)
+            pred_ratings = net(user_input, movie_input, train_rating_pair)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
