@@ -266,7 +266,7 @@ def config():
     parser.add_argument('--gcn_out_units', type=int, default=75)
     parser.add_argument('--gcn_out_accum', type=str, default="stack")
 
-    parser.add_argument('--gen_r_use_classification', type=int, default=2)
+    parser.add_argument('--gen_r_use_classification', type=bool, default=False)
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
     parser.add_argument('--train_rating_batch_size', type=int, default=10000)
