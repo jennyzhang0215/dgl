@@ -67,6 +67,8 @@ class MultiLinkGCNAggregator(HybridBlock):
     def hybrid_forward(self, F, src_input, dst_input, **kwargs):
         src_input = self.dropout(src_input)
         dst_input = self.dropout(dst_input)
+        print("self._src_key", self._src_key)
+        print("self._dst_key", self._dst_key)
         self.g[self._src_key].ndata['h'] = src_input
         self.g[self._dst_key].ndata['h'] = dst_input
         def message_func(edges):
