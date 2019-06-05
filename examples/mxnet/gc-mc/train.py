@@ -157,7 +157,6 @@ def train(args):
     count_loss = 0
 
     print("Start training ...")
-
     for iter_idx in range(1, args.train_max_iter):
         if args.gen_r_use_classification:
             nd_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, nd_gt_ratings),

@@ -43,13 +43,12 @@ class MultiLinkGCNAggregator(HybridBlock):
     def __init__(self, g, src_key, dst_key, units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
-
+        self.g = g
+        self._src_key = src_key
+        self._dst_key = dst_key
+        self._accum = accum
+        self._num_links = num_links
         with self.name_scope():
-            self.g = g
-            self._src_key = src_key
-            self._dst_key = dst_key
-            self._accum = accum
-            self._num_links = num_links
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self.act = get_activation(act)
             for i in range(num_links):
@@ -116,7 +115,7 @@ class GCMCLayer(HybridBlock):
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self._aggregators = LayerDictionary(prefix='agg_')
             with self._aggregators.name_scope():
-                self._aggregators[(src_key, dst_key)] = MultiLinkGCNAggregator(g=uv_graph,
+                self._aggregators[src_key] = MultiLinkGCNAggregator(g=uv_graph,
                                                                                src_key=src_key,
                                                                                dst_key=dst_key,
                                                                                units = agg_units,
@@ -125,7 +124,7 @@ class GCMCLayer(HybridBlock):
                                                                                accum=agg_accum,
                                                                                act=agg_act,
                                                                                prefix='{}_{}_'.format(src_key, dst_key))
-                self._aggregators[(dst_key, src_key)] = MultiLinkGCNAggregator(g=vu_graph,
+                self._aggregators[dst_key] = MultiLinkGCNAggregator(g=vu_graph,
                                                                                src_key=dst_key,
                                                                                dst_key=src_key,
                                                                                units=agg_units,
@@ -144,8 +143,8 @@ class GCMCLayer(HybridBlock):
             self._out_act = get_activation(out_act)
 
     def hybrid_forward(self, F, user_fea, movie_fea):
-        movie_h = self._aggregators[(self._src_key, self._dst_key)](user_fea, movie_fea)
-        user_h = self._aggregators[(self._dst_key, self._src_key)](movie_fea, user_fea)
+        movie_h = self._aggregators[self._src_key](user_fea, movie_fea)
+        user_h = self._aggregators[self._dst_key](movie_fea, user_fea)
         out_user = self._out_act(self._out_fcs[self._src_key](user_h))
         out_movie = self._out_act(self._out_fcs[self._dst_key](movie_h))
 
