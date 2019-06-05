@@ -59,6 +59,8 @@ class MovieLens(object):
         global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
         print('Total user number = {}, movie number = {}'.format(len(global_user_id_map),
                                                                  len(global_movie_id_map)))
+        self._num_user = len(global_user_id_map)
+        self._num_movie = len(global_movie_id_map)
 
         ### Generate features
         self._process_user_fea()
@@ -73,10 +75,14 @@ class MovieLens(object):
         self.train_rating_values = self.train_rating_info["rating"].values.astype(np.float32)
         user_movie_train_ratings_coo = sp.coo_matrix(
             (self.train_rating_values, self.train_rating_pairs),
-            shape=(len(global_user_id_map), len(global_movie_id_map)),dtype=np.float32)
-        user_movie_train_R = user_movie_train_ratings_coo.toarray()
+            shape=(self._num_user, self._num_movie),dtype=np.float32)
+        user_movie_train_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
+        user_movie_train_R[self.train_rating_pairs] = self.train_rating_values
+        print("user_movie_train_R", user_movie_train_R)
         movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
-        movie_user_train_R = movie_user_train_ratings_coo.toarray()
+        movie_user_train_R = np.zeros((self._num_movie, self._num_user), dtype=np.float32)
+        movie_user_train_R[self.train_rating_pairs[1,:], self.train_rating_pairs[0,:]] = self.train_rating_values
+        print("movie_user_train_R", movie_user_train_R)
 
         self.uv_train_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
