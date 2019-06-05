@@ -8,15 +8,13 @@ import mxnet as mx
 from mxnet import gluon
 from data import MovieLens
 from model import GCMCLayer, BiDecoder, InnerProductLayer
-from utils import get_activation, parse_ctx, \
-    gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
+from utils import get_activation, parse_ctx, gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
 from mxnet.gluon import nn, HybridBlock, Block
-from dgl import DGLError
 
 
 def load_dataset(args):
-    dataset = MovieLens(args.data_name)
+    dataset = MovieLens(args.data_name, args.ctx, symm=args.gcn_agg_norm_symm)
     # !IMPORTANT. We need to check that ids in all_graph are continuous from 0 to #Node - 1.
     # We will later use these ids to take the embedding vectors
     feature_dict = dict()
@@ -34,17 +32,18 @@ def load_dataset(args):
     return dataset, feature_dict
 
 class Net(HybridBlock):
-    def __init__(self, nratings, name_user, name_item, args, **kwargs):
+    def __init__(self, nratings, name_user, name_item, num_link, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._nratings = nratings
         self._name_user = name_user
         self._name_item = name_item
+        self._num_link = num_link
         self._act = get_activation(args.model_activation)
         with self.name_scope():
             # Construct Encoder
             self.encoder = GCMCLayer(agg_units=args.gcn_agg_units,
                                      out_units=args.gcn_out_units,
-                                     num_links=5,
+                                     num_links=num_link,
                                      src_key="user",
                                      dst_key="movie",
                                      dropout_rate=args.gcn_dropout,
@@ -111,7 +110,8 @@ def train(args):
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
     net = Net(nratings=possible_rating_values.size,
-              name_user="user", name_item="movie", args=args)
+              name_user="user", name_item="movie",
+              num_link=dataset.num_link, args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
