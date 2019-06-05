@@ -61,7 +61,9 @@ class MultiLinkGCNAggregator(HybridBlock):
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
-    def hybrid_forward(self, F, g, dst_key, **kwargs):
+    def hybrid_forward(self, F, src_input, dst_input, g, src_key, dst_key, **kwargs):
+        g[src_key].ndata['h'] = src_input
+        g[dst_key].ndata['h'] = dst_input
         def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
@@ -126,16 +128,12 @@ class GCMCLayer(HybridBlock):
 
             self._out_act = get_activation(out_act)
 
-    def hybrid_forward(self, F, src_g, dst_g, src_key, dst_key):
-        dst_h = self._aggregators[(src_key, dst_key)](src_g, dst_key)
-        src_h = self._aggregators[(dst_key, src_key)](dst_g, src_key)
-        out_dst = self._out_act(self._out_fcs[dst_key](dst_h))
-        out_src = self._out_act(self._out_fcs[dst_key](src_h))
-        src_g[src_key].ndata['h'] = out_src
-        src_g[dst_key].ndata['h'] = out_dst
-        dst_g[src_key].ndata['h'] = out_dst
-        dst_g[dst_key].ndata['h'] = out_src
-        return out_src, out_dst
+    def hybrid_forward(self, F, user_fea, movie_fea, user2movie_g, movie2user_g, user_key, movie_key):
+        movie_h = self._aggregators[(user_key, movie_key)](user_fea, movie_fea, user2movie_g, user_key, movie_key)
+        user_h = self._aggregators[(movie_key, user_key)](movie_fea, user_fea, movie2user_g, movie_key, user_key)
+        out_user = self._out_act(self._out_fcs[user_key](user_h))
+        out_movie = self._out_act(self._out_fcs[movie_key](movie_h))
+        return out_user, out_movie
 
 
 class BiDecoder(HybridBlock):

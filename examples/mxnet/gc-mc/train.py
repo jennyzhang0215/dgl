@@ -59,11 +59,12 @@ class Net(HybridBlock):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def hybrid_forward(self, F, uv_graph, vu_graph, rating_node_pairs):
-        output_l = self.encoder(uv_graph, vu_graph, "user", "movie")
+    def hybrid_forward(self, user_fea, movie_fea, uv_graph, vu_graph, rating_node_pairs):
+
+        user_out, movie_out = self.encoder(user_fea, movie_fea, uv_graph, vu_graph, "user", "movie")
         # Generate the predicted ratings
-        rating_user_fea = F.take(output_l[0], rating_node_pairs[0])
-        rating_item_fea = F.take(output_l[1], rating_node_pairs[1])
+        rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
+        rating_item_fea = mx.nd.take(movie_out, rating_node_pairs[1])
         pred_ratings = self.gen_ratings(rating_user_fea, rating_item_fea)
 
         return pred_ratings
@@ -137,12 +138,9 @@ def train(args):
 
     print("Start preparing graph ...")
     uv_train_graph = dataset.uv_train_graph
-    uv_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
-    uv_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
-
     vu_train_graph = dataset.vu_train_graph
-    vu_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
-    vu_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
+    user_input = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
 
     ### declare the loss information

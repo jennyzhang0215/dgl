@@ -76,6 +76,7 @@ class MovieLens(object):
         user_movie_train_ratings_coo = sp.coo_matrix(
             (self.train_rating_values, self.train_rating_pairs),
             shape=(self._num_user, self._num_movie),dtype=np.float32)
+
         user_movie_train_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
         user_movie_train_R[self.train_rating_pairs] = self.train_rating_values
         print("user_movie_train_R", user_movie_train_R)
