@@ -80,8 +80,7 @@ class MovieLens(object):
         user_movie_train_R[self.train_rating_pairs] = self.train_rating_values
         print("user_movie_train_R", user_movie_train_R)
         movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
-        movie_user_train_R = np.zeros((self._num_movie, self._num_user), dtype=np.float32)
-        movie_user_train_R[self.train_rating_pairs[1,:], self.train_rating_pairs[0,:]] = self.train_rating_values
+        movie_user_train_R = user_movie_train_R.transpose()
         print("movie_user_train_R", movie_user_train_R)
 
         self.uv_train_graph = dgl.DGLBipartiteGraph(
