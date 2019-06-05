@@ -59,9 +59,10 @@ class Net(HybridBlock):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def hybrid_forward(self, user_fea, movie_fea, uv_graph, vu_graph, rating_node_pairs):
+    def hybrid_forward(self, F, user_fea, movie_fea, uv_graph, vu_graph, rating_node_pairs):
 
-        user_out, movie_out = self.encoder(user_fea, movie_fea, uv_graph, vu_graph, "user", "movie")
+        user_out, movie_out = self.encoder(user_fea, movie_fea, uv_graph, vu_graph,
+                                           self._name_user, self._name_item)
         # Generate the predicted ratings
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
         rating_item_fea = mx.nd.take(movie_out, rating_node_pairs[1])
@@ -160,7 +161,7 @@ def train(args):
                                       ctx=args.ctx, dtype=np.int32)
 
         with mx.autograd.record():
-            pred_ratings = net(uv_train_graph, vu_train_graph, train_rating_pair)
+            pred_ratings = net(user_input, movie_input, uv_train_graph, vu_train_graph, train_rating_pair)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
