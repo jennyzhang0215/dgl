@@ -40,7 +40,6 @@ class Net(HybridBlock):
         self._num_link = num_link
         self._act = get_activation(args.model_activation)
         with self.name_scope():
-            # Construct Encoder
             self.encoder = GCMCLayer(agg_units=args.gcn_agg_units,
                                      out_units=args.gcn_out_units,
                                      num_links=num_link,
@@ -145,7 +144,7 @@ def train(args):
     vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
     vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
-    
+
     ### declare the loss information
     best_valid_rmse = np.inf
     no_better_valid = 0
@@ -163,9 +162,7 @@ def train(args):
                                       ctx=args.ctx, dtype=np.int32)
 
         with mx.autograd.record():
-            pred_ratings = net.forward(uv_graph=uv_train_graph,
-                                       vu_graph=vu_train_graph,
-                                       rating_node_pairs=train_rating_pair)
+            pred_ratings = net(uv_train_graph, vu_train_graph, train_rating_pair)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
             else:
