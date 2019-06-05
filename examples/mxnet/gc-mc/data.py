@@ -121,6 +121,13 @@ class MovieLens(object):
     @property
     def num_links(self):
         return self.possible_rating_values.size
+    @property
+    def name_user(self):
+        return "user"
+
+    @property
+    def name_movie(self):
+        return "movie"
 
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
         print("  -----------------")

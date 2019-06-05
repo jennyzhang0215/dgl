@@ -124,8 +124,8 @@ def train(args):
     ### build the net
     net = Net(uv_graph=uv_train_graph,
               vu_graph=vu_train_graph,
-              src_key=dataset._num_user,
-              dst_key=dataset._num_movie,
+              src_key=dataset.name_user,
+              dst_key=dataset.name_movie,
               nratings=possible_rating_values.size,
               num_links=dataset.num_links,
               args=args)
