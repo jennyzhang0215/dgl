@@ -145,8 +145,6 @@ def train(args):
                              np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
             mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
     """
-    # uv_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
-    # uv_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
     uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
 
