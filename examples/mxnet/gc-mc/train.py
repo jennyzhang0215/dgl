@@ -105,13 +105,12 @@ class Net(HybridBlock):
 
 def train(args):
     dataset, feature_dict = load_dataset(args)
-
+    print("Loading data finished ...\n")
     ### build the net
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
     net = Net(nratings=possible_rating_values.size,
-              name_user="user", name_item="movie",
-              args=args)
+              name_user="user", name_item="movie", args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
@@ -120,9 +119,10 @@ def train(args):
         rating_loss_net = gluon.loss.L2Loss()
     rating_loss_net.hybridize()
     trainer = gluon.Trainer(net.collect_params(), args.train_optimizer, {'learning_rate': args.train_lr})
-
+    print("Loading network finished ...\n")
+    
     ### prepare the logger
-    train_loss_logger = MetricLogger(['iter', 'loss', 'rmse', ], ['%d', '%.4f', '%.4f'],
+    train_loss_logger = MetricLogger(['iter', 'loss', 'rmse'], ['%d', '%.4f', '%.4f'],
                                      os.path.join(args.save_dir, 'train_loss%d.csv' % args.save_id))
     valid_loss_logger = MetricLogger(['iter', 'rmse'], ['%d', '%.4f'],
                                      os.path.join(args.save_dir, 'valid_loss%d.csv' % args.save_id))
@@ -138,26 +138,22 @@ def train(args):
     uv_train_graph = dataset.uv_train_graph
     uv_train_support_l = dataset.compute_support(uv_train_graph.adjacency_matrix_scipy(("user", "movie", "rating")),
                                                  dataset.num_link, args.gcn_agg_norm_symm)
-    """
     for idx, support in enumerate(uv_train_support_l):
         sup_coo = support.tocoo()
         uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
                              np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
             mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
-    """
     uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
 
     vu_train_graph = dataset.vu_train_graph
     vu_train_support_l = dataset.compute_support(vu_train_graph.adjacency_matrix_scipy(("movie", "user", "rating")),
                                                  dataset.num_link, args.gcn_agg_norm_symm)
-    """
     for idx, support in enumerate(vu_train_support_l):
         sup_coo = support.tocoo()
         vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
                              np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
             mx.nd.array(sup_coo.data, ctx=args.ctx, dtype=np.float32)
-    """
     vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
     vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
 

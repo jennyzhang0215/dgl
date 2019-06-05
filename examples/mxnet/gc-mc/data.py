@@ -83,8 +83,6 @@ class MovieLens(object):
             # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
-
-
         self.vu_train_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
             number_of_nodes_by_type={'user': len(global_user_id_map),
