@@ -137,12 +137,12 @@ def train(args):
 
     print("Start preparing graph ...")
     uv_train_graph = dataset.uv_train_graph
-    uv_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
-    uv_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+    uv_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
+    uv_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
 
     vu_train_graph = dataset.vu_train_graph
-    vu_train_graph["movie"].ndata["h"] = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
-    vu_train_graph["user"].ndata["h"] = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
+    vu_train_graph["movie"].ndata["h"] = mx.nd.array(dataset.movie_features, ctx=args.ctx, dtype=np.float32)
+    vu_train_graph["user"].ndata["h"] = mx.nd.array(dataset.user_features, ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
 
     ### declare the loss information

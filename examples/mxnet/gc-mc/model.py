@@ -126,7 +126,7 @@ class GCMCLayer(HybridBlock):
 
             self._out_act = get_activation(out_act)
 
-    def hybrid_forward(self, src_g, dst_g, src_key, dst_key):
+    def hybrid_forward(self, F, src_g, dst_g, src_key, dst_key):
         dst_h = self._aggregators[(src_key, dst_key)](src_g, dst_key)
         src_h = self._aggregators[(dst_key, src_key)](dst_g, src_key)
         out_dst = self._out_act(self._out_fcs[dst_key](dst_h))
