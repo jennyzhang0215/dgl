@@ -128,7 +128,7 @@ def train(args):
               src_key=dataset._num_user,
               dst_key=dataset._num_movie,
               nratings=possible_rating_values.size,
-              num_links=dataset.num_link,
+              num_links=dataset.num_links,
               args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
