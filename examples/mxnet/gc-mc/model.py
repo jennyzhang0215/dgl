@@ -79,8 +79,8 @@ class MultiLinkGCNAggregator(Block):
         dst_input = self.dropout(dst_input)
         print("self._src_key", self._src_key)
         print("self._dst_key", self._dst_key)
-        self.g[self._src_key].ndata['h'] = src_input
-        self.g[self._dst_key].ndata['h'] = dst_input
+        self.g[self._src_key].ndata['fea'] = src_input
+        self.g[self._dst_key].ndata['fea'] = dst_input
         def message_func(edges):
             print("\n\n In the message function ...")
             msg_dic = {}
@@ -91,7 +91,7 @@ class MultiLinkGCNAggregator(Block):
                 # print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
                 # print("edges.src['h']", edges.src['h'])
                 msg_dic['msg{}'.format(i)] = mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1))\
-                                             * mx.nd.dot(edges.src['h'], w, transpose_b=True)
+                                             * mx.nd.dot(edges.src['fea'], w, transpose_b=True)
             return msg_dic
 
         def reduce_func(nodes):
