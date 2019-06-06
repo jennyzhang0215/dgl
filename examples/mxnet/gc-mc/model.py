@@ -90,8 +90,8 @@ class MultiLinkGCNAggregator(Block):
                 print("w", w.shape)
                 print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
                 print("edges.src['h']", edges.src['h'])
-                msg_dic['msg{}'.format(i)] = edges.data['support{}'.format(i)] * mx.nd.dot(edges.src['h'], w,
-                                                                                           transpose_b=True)
+                msg_dic['msg{}'.format(i)] = mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1))\
+                                             * mx.nd.dot(edges.src['h'], w, transpose_b=True)
             return msg_dic
 
         def reduce_func(nodes):
