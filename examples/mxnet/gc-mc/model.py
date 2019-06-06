@@ -40,7 +40,7 @@ class LayerDictionary(Block):
 
 
 class MultiLinkGCNAggregator(Block):
-    def __init__(self, g, src_key, dst_key, units, num_links,
+    def __init__(self, g, src_key, dst_key, units, in_units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
         self.g = g
@@ -51,9 +51,7 @@ class MultiLinkGCNAggregator(Block):
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self.act = get_activation(act)
-            self.weight_l = []
-            self.bias_l = []
-            for i in range(num_links):
+            # for i in range(num_links):
                 # self.__setattr__('weight{}'.format(i),
                 #                  self.params.get('weight{}'.format(i),
                 #                                  shape=(units, 0),
@@ -65,15 +63,15 @@ class MultiLinkGCNAggregator(Block):
                 #                                  dtype=np.float32,
                 #                                  init='zeros',
                 #                                  allow_deferred_init=True))
-                self.weight_l.append(self.params.get('weight{}'.format(i),
-                                                 shape=(units, 0),
-                                                 dtype=np.float32,
-                                                 allow_deferred_init=True))
-                self.bias_l.append(self.params.get('bias{}'.format(i),
-                                                 shape=(units,),
-                                                 dtype=np.float32,
-                                                 init='zeros',
-                                                 allow_deferred_init=True))
+            self.weights = self.params.get('weight',
+                                           shape=(num_links, units, in_units),
+                                           dtype=np.float32,
+                                           allow_deferred_init=True)
+            self.biases = self.params.get('bias',
+                                          shape=(num_links, units, ),
+                                          dtype=np.float32,
+                                          init='zeros',
+                                          allow_deferred_init=True)
 
     def forward(self, src_input, dst_input):
         src_input = self.dropout(src_input)
@@ -86,15 +84,15 @@ class MultiLinkGCNAggregator(Block):
             msg_dic = {}
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
-                w = self.weight_l[i]
-                msg_dic['msg{}'.format(i)] = w * edges.src['h'] * edges.data['support{}'.format(i)]
+                w = self.weights.data()[i]
+                msg_dic['msg{}'.format(i)] = edges.data['support{}'.format(i) * mx.nd.dot(w * edges.src['h']) ]
             return msg_dic
 
         def reduce_func(nodes):
             out_l = []
             for i in range(self._num_links):
                 # b = kwargs['bias{}'.format(i)]
-                b = self.bias_l[i]
+                b = self.biases.data()[i]
                 out_l.append(mx.nd.sum(nodes.mailbox['msg{}'.format(i)], 1) + b)
             if self._accum == "sum":
                 return {'accum': mx.nd.add_n(*out_l)}
