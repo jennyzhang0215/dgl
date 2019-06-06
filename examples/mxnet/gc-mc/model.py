@@ -51,6 +51,7 @@ class MultiLinkGCNAggregator(Block):
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self.act = get_activation(act)
+            ### TODO kwargs only be supported in hybridBlock
             # for i in range(num_links):
                 # self.__setattr__('weight{}'.format(i),
                 #                  self.params.get('weight{}'.format(i),
@@ -114,7 +115,7 @@ class MultiLinkGCNAggregator(Block):
 
 
 class GCMCLayer(Block):
-    def __init__(self, uv_graph, vu_graph, src_key, dst_key, agg_units, out_units, num_links,
+    def __init__(self, uv_graph, vu_graph, src_key, dst_key, in_units, agg_units, out_units, num_links,
                  dropout_rate=0.0, agg_accum='stack', agg_act=None, out_act=None,
                  agg_ordinal_sharing=False, share_agg_weights=False, share_out_fc_weights=False,
                  **kwargs):
@@ -132,6 +133,7 @@ class GCMCLayer(Block):
                                                                     src_key=src_key,
                                                                     dst_key=dst_key,
                                                                     units = agg_units,
+                                                                    in_units=in_units,
                                                                     num_links=num_links,
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
@@ -140,6 +142,7 @@ class GCMCLayer(Block):
                 self._aggregators[dst_key] = MultiLinkGCNAggregator(g=vu_graph,
                                                                     src_key=dst_key,
                                                                     dst_key=src_key,
+                                                                    in_units=in_units,
                                                                     units=agg_units,
                                                                     num_links=num_links,
                                                                     dropout_rate=dropout_rate,
