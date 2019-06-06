@@ -68,11 +68,11 @@ class MultiLinkGCNAggregator(Block):
                                            shape=(num_links, units, in_units),
                                            dtype=np.float32,
                                            allow_deferred_init=True)
-            self.biases = self.params.get('bias',
-                                          shape=(num_links, units, ),
-                                          dtype=np.float32,
-                                          init='zeros',
-                                          allow_deferred_init=True)
+            # self.biases = self.params.get('bias',
+            #                               shape=(num_links, units, ),
+            #                               dtype=np.float32,
+            #                               init='zeros',
+            #                               allow_deferred_init=True)
 
     def forward(self, src_input, dst_input):
         src_input = self.dropout(src_input)
@@ -97,8 +97,8 @@ class MultiLinkGCNAggregator(Block):
             out_l = []
             for i in range(self._num_links):
                 # b = kwargs['bias{}'.format(i)]
-                b = self.biases.data()[i]
-                out_l.append(mx.nd.sum(nodes.mailbox['msg{}'.format(i)], 1) + b)
+                # b = self.biases.data()[i]
+                out_l.append(mx.nd.sum(nodes.mailbox['msg{}'.format(i)], 1))
             if self._accum == "sum":
                 return {'accum': mx.nd.add_n(*out_l)}
             elif self._accum == "stack":
