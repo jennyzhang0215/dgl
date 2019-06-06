@@ -76,37 +76,40 @@ class Net(Block):
 
 
 
-# def evaluate(args, net, feature_dict, data_iter, segment='valid'):
-#     rating_mean = data_iter._train_ratings.mean()
-#     rating_std = data_iter._train_ratings.std()
-#     rating_sampler = data_iter.rating_sampler(batch_size=args.train_rating_batch_size, segment=segment,
-#                                               sequential=True)
-#     possible_rating_values = data_iter.possible_rating_values
-#     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-#     eval_graph = data_iter.val_graph if segment == 'valid' else data_iter.test_graph
-#     graph_sampler_args = gen_graph_sampler_args(data_iter.all_graph.meta_graph)
-#     # Evaluate RMSE
-#     cnt = 0
-#     rmse = 0
-#
-#     for rating_node_pairs, gt_ratings in rating_sampler:
-#         nd_gt_ratings = mx.nd.array(gt_ratings, dtype=np.float32, ctx=args.ctx)
-#         cnt += rating_node_pairs.shape[1]
-#         pred_ratings = net.forward(graph=eval_graph,
-#                                    feature_dict=feature_dict,
-#                                    rating_node_pairs=rating_node_pairs,
-#                                    graph_sampler_args=graph_sampler_args,
-#                                    symm=args.gcn_agg_norm_symm)
-#         if args.gen_r_use_classification:
-#             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
-#                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
-#             rmse += mx.nd.square(real_pred_ratings - nd_gt_ratings).sum().asscalar()
-#         else:
-#             rmse += mx.nd.square(mx.nd.clip(pred_ratings.reshape((-1,)) * rating_std + rating_mean,
-#                                             possible_rating_values.min(),
-#                                             possible_rating_values.max()) - nd_gt_ratings).sum().asscalar()
-#     rmse  = np.sqrt(rmse / cnt)
-#     return rmse
+def evaluate(args, net, feature_dict, dataset, segment='valid'):
+    rating_mean = dataset.train_rating_values.mean()
+    rating_std = dataset.train_rating_values.std()
+    possible_rating_values = dataset.possible_rating_values
+    nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
+
+    if segment == "valid":
+        eval_uv_graph, eval_vu_graph = dataset.uv_train_graph, dataset.vu_train_graph
+        rating_pairs = dataset.valid_rating_pairs
+        rating_values = dataset.valid_rating_values
+    elif segment == "test":
+        eval_uv_graph, eval_vu_graph = dataset.uv_test_graph, dataset.vu_test_graph
+        rating_pairs = dataset.test_rating_pairs
+        rating_values = dataset.test_rating_values
+    else:
+        raise NotImplementedError
+    user_input = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+
+    rating_pairs = mx.nd.array(rating_pairs, ctx=args.ctx, dtype=np.int64)
+    rating_values = mx.nd.array(rating_values, ctx=args.ctx, dtype=np.float32)
+
+    # Evaluate RMSE
+    pred_ratings = net(user_input, movie_input, rating_pairs)
+    if args.gen_r_use_classification:
+        real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
+                             nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
+        rmse = mx.nd.square(real_pred_ratings - rating_values).mean().asscalar()
+    else:
+        rmse = mx.nd.square(mx.nd.clip(pred_ratings.reshape((-1,)) * rating_std + rating_mean,
+                                       possible_rating_values.min(),
+                                       possible_rating_values.max()) - rating_values).mean().asscalar()
+    rmse  = np.sqrt(rmse)
+    return rmse
 
 def train(args):
     dataset, feature_dict = load_dataset(args)
@@ -115,9 +118,8 @@ def train(args):
     ### prepare data
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-
-    train_rating_pair = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
-    nd_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
+    train_rating_pairs = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
+    train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
 
@@ -168,16 +170,15 @@ def train(args):
     print("Start training ...")
     for iter_idx in range(1, args.train_max_iter):
         if args.gen_r_use_classification:
-            nd_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, nd_gt_ratings),
+            train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
-
         with mx.autograd.record():
-            pred_ratings = net(user_input, movie_input, train_rating_pair)
+            pred_ratings = net(user_input, movie_input, train_rating_pairs)
             if args.gen_r_use_classification:
-                loss = rating_loss_net(pred_ratings, nd_gt_label).mean()
+                loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:
                 loss = rating_loss_net(mx.nd.reshape(pred_ratings, shape=(-1,)),
-                                       (nd_gt_ratings - rating_mean) / rating_std ).mean()
+                                       (train_gt_ratings - rating_mean) / rating_std ).mean()
             loss.backward()
 
         count_loss += loss.asscalar()
@@ -192,9 +193,9 @@ def train(args):
         if args.gen_r_use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
-            rmse = mx.nd.square(real_pred_ratings - nd_gt_ratings).sum()
+            rmse = mx.nd.square(real_pred_ratings - train_gt_ratings).sum()
         else:
-            rmse = mx.nd.square(pred_ratings.reshape((-1,)) * rating_std + rating_mean - nd_gt_ratings).sum()
+            rmse = mx.nd.square(pred_ratings.reshape((-1,)) * rating_std + rating_mean - train_gt_ratings).sum()
         count_rmse += rmse.asscalar()
         count_num += pred_ratings.shape[0]
 
@@ -206,42 +207,37 @@ def train(args):
             avg_gnorm = 0
             count_rmse = 0
             count_num = 0
-    #
-    #     if iter_idx % args.train_valid_interval == 0:
-    #         valid_rmse = evaluate(args=args,
-    #                               net=net,
-    #                               feature_dict=feature_dict,
-    #                               data_iter=data_iter,
-    #                               segment='valid')
-    #         valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
-    #         logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
-    #
-    #         if valid_rmse < best_valid_rmse:
-    #             best_valid_rmse = valid_rmse
-    #             no_better_valid = 0
-    #             best_iter = iter_idx
-    #             #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
-    #             test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, data_iter=data_iter, segment='test')
-    #             best_test_rmse = test_rmse
-    #             test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
-    #             logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
-    #         else:
-    #             no_better_valid += 1
-    #             if no_better_valid > args.train_early_stopping_patience\
-    #                 and trainer.learning_rate <= args.train_min_lr:
-    #                 logging.info("Early stopping threshold reached. Stop training.")
-    #                 break
-    #             if no_better_valid > args.train_decay_patience:
-    #                 new_lr = max(trainer.learning_rate * args.train_lr_decay_factor, args.train_min_lr)
-    #                 if new_lr < trainer.learning_rate:
-    #                     logging.info("\tChange the LR to %g" % new_lr)
-    #                     trainer.set_learning_rate(new_lr)
-    #                     no_better_valid = 0
+
+        if iter_idx % args.train_valid_interval == 0:
+            valid_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, dataset=dataset, segment='valid')
+            valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
+            logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
+
+            if valid_rmse < best_valid_rmse:
+                best_valid_rmse = valid_rmse
+                no_better_valid = 0
+                best_iter = iter_idx
+                #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
+                test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, dataset=dataset, segment='test')
+                best_test_rmse = test_rmse
+                test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
+                logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
+            else:
+                no_better_valid += 1
+                if no_better_valid > args.train_early_stopping_patience\
+                    and trainer.learning_rate <= args.train_min_lr:
+                    logging.info("Early stopping threshold reached. Stop training.")
+                    break
+                if no_better_valid > args.train_decay_patience:
+                    new_lr = max(trainer.learning_rate * args.train_lr_decay_factor, args.train_min_lr)
+                    if new_lr < trainer.learning_rate:
+                        logging.info("\tChange the LR to %g" % new_lr)
+                        trainer.set_learning_rate(new_lr)
+                        no_better_valid = 0
         if iter_idx  % args.train_log_interval == 0:
             print(logging_str)
-    # logging.info('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
-    #     best_iter, best_valid_rmse, best_test_rmse))
-
+    print('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
+        best_iter, best_valid_rmse, best_test_rmse))
     train_loss_logger.close()
     valid_loss_logger.close()
     test_loss_logger.close()

@@ -21,28 +21,38 @@ _word_embedding = nlp.embedding.GloVe('glove.840B.300d')
 _tokenizer = nlp.data.transforms.SpacyTokenizer()
 
 class MovieLens(object):
-    def __init__(self, name, ctx, symm=True):
+    def __init__(self, name, ctx, symm=True,
+                 test_ratio=0.1, valid_ratio = 0.1):
         self._name = name
         self._ctx = ctx
         self._symm = symm
+        self._test_ratio = test_ratio
+        self._valid_ratio = valid_ratio
         print("Starting processing {} ...".format(self._name))
         self._load_raw_user_info()
         self._load_raw_movie_info()
         if self._name == 'ml-100k':
-            self.train_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.base'), '\t')
+            train_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.base'), '\t')
             self.test_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.test'), '\t')
-            self.all_rating_info = pd.concat([self.train_rating_info, self.test_rating_info])
+            self.all_rating_info = pd.concat([train_rating_info, self.test_rating_info])
         elif self._name == 'ml-1m' or self._name == 'ml-10m':
             self.all_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'ratings.dat'), '::')
-            num_test = int(np.ceil(self.all_rating_info.shape[0] * 0.1))
+            num_test = int(np.ceil(self.all_rating_info.shape[0] * self._test_ratio))
             shuffled_idx = np.random.permutation(self.all_rating_info.shape[0])
             self.test_rating_info = self.all_rating_info.iloc[shuffled_idx[: num_test]]
-            self.train_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
+            train_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
         else:
             raise NotImplementedError
+        num_valid = int(np.ceil(train_rating_info.shape[0] * self._valid_ratio))
+        shuffled_idx = np.random.permutation(train_rating_info.shape[0])
+        self.valid_rating_info = train_rating_info.iloc[shuffled_idx[: num_valid]]
+        self.train_rating_info = train_rating_info.iloc[shuffled_idx[num_valid: ]]
+
         print("All rating pairs : {}".format(self.all_rating_info.shape[0]))
-        print("\tTest rating pairs : {}".format(self.test_rating_info.shape[0]))
-        print("Filter user and movie info unseen in rating pairs ...")
+        print("\tTrain rating pairs : {}".format(self.train_rating_info.shape[0]))
+        print("\tValid rating pairs : {}".format(self.valid_rating_info.shape[0]))
+        print("\tTest rating pairs  : {}".format(self.test_rating_info.shape[0]))
+
         self.user_info = self._drop_unseen_nodes(orign_info=self.user_info,
                                             cmp_col_name="id",
                                             reserved_ids_set=set(self.all_rating_info["user_id"].values),
@@ -55,12 +65,12 @@ class MovieLens(object):
         # Map user/movie to the global id
         print("  -----------------")
         print("Generating user id map and movie id map ...")
-        global_user_id_map = {ele: i for i, ele in enumerate(self.user_info['id'])}
-        global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
-        print('Total user number = {}, movie number = {}'.format(len(global_user_id_map),
-                                                                 len(global_movie_id_map)))
-        self._num_user = len(global_user_id_map)
-        self._num_movie = len(global_movie_id_map)
+        self.global_user_id_map = {ele: i for i, ele in enumerate(self.user_info['id'])}
+        self.global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
+        print('Total user number = {}, movie number = {}'.format(len(self.global_user_id_map),
+                                                                 len(self.global_movie_id_map)))
+        self._num_user = len(self.global_user_id_map)
+        self._num_movie = len(self.global_movie_id_map)
 
         ### Generate features
         self._process_user_fea()
@@ -68,51 +78,66 @@ class MovieLens(object):
         #print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
         #print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
-        self.train_rating_pairs = (np.array([global_user_id_map[ele]
-                                             for ele in self.train_rating_info["user_id"]], dtype=np.int64),
-                                   np.array([global_movie_id_map[ele]
-                                             for ele in self.train_rating_info["movie_id"]], dtype=np.int64))
-        self.train_rating_values = self.train_rating_info["rating"].values.astype(np.float32)
-        user_movie_train_ratings_coo = sp.coo_matrix(
-            (self.train_rating_values, self.train_rating_pairs),
+        self.train_rating_pairs, self.train_rating_values = self._generata_pair_value(self.train_rating_info)
+        self.valid_rating_pairs, self.valid_rating_values = self._generata_pair_value(self.valid_rating_info)
+        self.test_rating_pairs, self.test_rating_values = self._generata_pair_value(self.test_rating_info)
+
+        self.uv_train_graph, self.vu_train_graph = self._generate_graphs(self.train_rating_pairs,
+                                                                         self.train_rating_values)
+        self.uv_test_graph, self.vu_test_graph = self._generate_graphs(
+            np.concatenate((self.train_rating_pairs,self.valid_rating_pairs), axis=1),
+            np.concatenate((self.train_rating_values,self.valid_rating_values)))
+
+    def _generata_pair_value(self, rating_info):
+        rating_pairs = (np.array([self.global_user_id_map[ele]
+                                  for ele in rating_info["user_id"]], dtype=np.int64),
+                        np.array([self.global_movie_id_map[ele]
+                                  for ele in rating_info["movie_id"]], dtype=np.int64))
+        rating_values = rating_info["rating"].values.astype(np.float32)
+
+        return rating_pairs, rating_values
+
+    def _generate_graphs(self, rating_pairs, rating_values):
+        user_movie_ratings_coo = sp.coo_matrix(
+            (rating_values, rating_pairs),
             shape=(self._num_user, self._num_movie),dtype=np.float32)
+        movie_user_ratings_coo = user_movie_ratings_coo.transpose()
 
-        user_movie_train_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
-        user_movie_train_R[self.train_rating_pairs] = self.train_rating_values
-        # print("user_movie_train_R", user_movie_train_R)
-        movie_user_train_ratings_coo = user_movie_train_ratings_coo.transpose()
-        movie_user_train_R = user_movie_train_R.transpose()
-        # print("movie_user_train_R", movie_user_train_R)
+        user_movie_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
+        user_movie_R[rating_pairs] = rating_values
+        movie_user_R = user_movie_R.transpose()
 
-        self.uv_train_graph = dgl.DGLBipartiteGraph(
+        uv_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
             number_of_nodes_by_type={'user': self._num_user,
                                      'movie': self._num_movie},
-            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_train_ratings_coo},
+            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo},
             # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
-        self.vu_train_graph = dgl.DGLBipartiteGraph(
+        vu_graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
             number_of_nodes_by_type={'user': self._num_user,
                                      'movie': self._num_movie},
-            edge_connections_by_type={('movie', 'user', 'rating'): movie_user_train_ratings_coo},
+            edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
             # node_frame={"user": self.user_features, "movie": self.movie_features},
             readonly=True)
 
-        uv_train_support_l = self.compute_support(user_movie_train_R, self.num_links, symm)
+        uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
         for idx, support in enumerate(uv_train_support_l):
             sup_coo = support.tocoo()
-            self.uv_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                                      np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup_coo.data, ctx=ctx, dtype=np.float32)
+            uv_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                           np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
 
-        vu_train_support_l = self.compute_support(movie_user_train_R, self.num_links, self._symm)
+        vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
         for idx, support in enumerate(vu_train_support_l):
             sup_coo = support.tocoo()
-            self.vu_train_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                                      np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup_coo.data, ctx=ctx, dtype=np.float32)
+            vu_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+                           np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
+
+        return uv_graph, vu_graph
 
     @property
     def possible_rating_values(self):
