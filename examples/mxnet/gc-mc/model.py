@@ -5,7 +5,7 @@ from mxnet.gluon import nn, HybridBlock, Block
 from utils import get_activation
 import mxnet as mx
 
-class LayerDictionary(HybridBlock):
+class LayerDictionary(Block):
     def __init__(self, **kwargs):
         """
 
