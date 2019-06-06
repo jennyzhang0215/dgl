@@ -17,7 +17,7 @@ class LayerDictionary(Block):
         super(LayerDictionary, self).__init__(**kwargs)
         self._key2idx = dict()
         with self.name_scope():
-            self._layers = nn.HybridSequential()
+            self._layers = nn.Sequential()
         self._nlayers = 0
 
     def __len__(self):
