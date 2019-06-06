@@ -21,10 +21,15 @@ def load_dataset(args):
     nd_user_indices = mx.nd.arange(dataset.user_features.shape[0], ctx=args.ctx)
     nd_item_indices = mx.nd.arange(dataset.movie_features.shape[0], ctx=args.ctx)
     user_item_total = dataset.user_features.shape[0] + dataset.movie_features.shape[0]
-    # feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
-    # feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
-    feature_dict["user"] = mx.nd.random.uniform(-1, 1, shape=(dataset.user_features.shape[0], 10))
-    feature_dict["movie"] = mx.nd.random.uniform(-1, 1, shape=(dataset.movie_features.shape[0], 10))
+    if args.use_one_hot_fea:
+        feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
+        feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
+    else:
+        feature_dict["user"] = dataset.user_features
+        feature_dict["movie"] = dataset.movie_features
+    # feature_dict["user"] = mx.nd.random.uniform(-1, 1, shape=(dataset.user_features.shape[0], 100))
+    # feature_dict["movie"] = mx.nd.random.uniform(-1, 1, shape=(dataset.movie_features.shape[0], 10))
+
     info_line = "Feature dim: "
     info_line += "\nUser: {}".format(feature_dict["user"].shape)
     info_line += "\nMovie: {}".format(feature_dict["movie"].shape)
@@ -246,7 +251,7 @@ def config():
     parser = argparse.ArgumentParser(description='Run the baseline method.')
 
     parser.add_argument('--seed', default=123, type=int)
-    parser.add_argument('--ctx', dest='ctx', default='gpu', type=str,
+    parser.add_argument('--ctx', dest='ctx', default='cpu', type=str,
                         help='Running Context. E.g `--ctx gpu` or `--ctx gpu0,gpu1` or `--ctx cpu`')
     parser.add_argument('--save_dir', type=str, help='The saving directory')
     parser.add_argument('--save_id', type=int, help='The saving log id')
@@ -256,6 +261,8 @@ def config():
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1)
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
+    parser.add_argument('--use_one_hot_fea', type=bool, default=True)
+
 
     parser.add_argument('--model_remove_rating', type=bool, default=True)
     parser.add_argument('--model_activation', type=str, default="leaky")

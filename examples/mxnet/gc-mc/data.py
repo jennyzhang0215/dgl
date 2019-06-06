@@ -65,8 +65,8 @@ class MovieLens(object):
         ### Generate features
         self._process_user_fea()
         self._process_movie_fea()
-        print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
-        print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
+        #print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
+        #print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
         self.train_rating_pairs = (np.array([global_user_id_map[ele]
                                              for ele in self.train_rating_info["user_id"]], dtype=np.int64),
