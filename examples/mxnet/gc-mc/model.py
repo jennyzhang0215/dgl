@@ -167,7 +167,6 @@ class GCMCLayer(Block):
         user_h = self._aggregators[self._dst_key](movie_fea, user_fea)
         out_user = self._out_act(self._out_fcs[self._src_key](user_h))
         out_movie = self._out_act(self._out_fcs[self._dst_key](movie_h))
-
         return out_user, out_movie
 
 

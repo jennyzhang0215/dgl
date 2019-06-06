@@ -21,9 +21,10 @@ def load_dataset(args):
     nd_user_indices = mx.nd.arange(dataset.user_features.shape[0], ctx=args.ctx)
     nd_item_indices = mx.nd.arange(dataset.movie_features.shape[0], ctx=args.ctx)
     user_item_total = dataset.user_features.shape[0] + dataset.movie_features.shape[0]
-    feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
-    feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
-
+    # feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
+    # feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
+    feature_dict["user"] = mx.nd.random.uniform(-1, 1, shape=(dataset.user_features.shape[0], 10))
+    feature_dict["movie"] = mx.nd.random.uniform(-1, 1, shape=(dataset.movie_features.shape[0], 10))
     info_line = "Feature dim: "
     info_line += "\nUser: {}".format(feature_dict["user"].shape)
     info_line += "\nMovie: {}".format(feature_dict["movie"].shape)
@@ -175,8 +176,8 @@ def train(args):
             loss.backward()
 
         count_loss += loss.asscalar()
-        gnorm = params_clip_global_norm(net.collect_params(), args.train_grad_clip, args.ctx)
-        avg_gnorm += gnorm
+        # gnorm = params_clip_global_norm(net.collect_params(), args.train_grad_clip, args.ctx)
+        #avg_gnorm += gnorm
         trainer.step(1.0) #, ignore_stale_grad=True)
 
         if iter_idx == 1:
