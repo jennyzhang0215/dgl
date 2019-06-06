@@ -99,7 +99,7 @@ class MultiLinkGCNAggregator(Block):
             if self._accum == "sum":
                 return {'accum': mx.nd.add_n(*out_l)}
             elif self._accum == "stack":
-                return {'accum': F.concat(*out_l, dim=1)}
+                return {'accum': mx.nd.concat(*out_l, dim=1)}
             else:
                 raise NotImplementedError
 
