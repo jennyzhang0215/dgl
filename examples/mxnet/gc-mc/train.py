@@ -233,7 +233,7 @@ def train(args):
     #                     trainer.set_learning_rate(new_lr)
     #                     no_better_valid = 0
         if iter_idx  % args.train_log_interval == 0:
-            logging.info(logging_str)
+            print(logging_str)
     # logging.info('Best Iter Idx={}, Best Valid RMSE={:.4f}, Best Test RMSE={:.4f}'.format(
     #     best_iter, best_valid_rmse, best_test_rmse))
 
@@ -276,7 +276,7 @@ def config():
 
     parser.add_argument('--train_rating_batch_size', type=int, default=10000)
     parser.add_argument('--train_max_iter', type=int, default=100000)
-    parser.add_argument('--train_log_interval', type=int, default=10)
+    parser.add_argument('--train_log_interval', type=int, default=1)
     parser.add_argument('--train_valid_interval', type=int, default=10)
     parser.add_argument('--train_optimizer', type=str, default="adam")
     parser.add_argument('--train_grad_clip', type=float, default=10.0)
