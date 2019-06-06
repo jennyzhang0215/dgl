@@ -82,11 +82,15 @@ class MultiLinkGCNAggregator(Block):
         self.g[self._src_key].ndata['h'] = src_input
         self.g[self._dst_key].ndata['h'] = dst_input
         def message_func(edges):
+            print("\n\n In the message function ...")
             msg_dic = {}
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.weights.data()[i]
-                msg_dic['msg{}'.format(i)] = edges.data['support{}'.format(i) * mx.nd.dot(w * edges.src['h']) ]
+                print("w", w.shape)
+                print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
+                print("edges.src['h']", edges.src['h'])
+                msg_dic['msg{}'.format(i)] = edges.data['support{}'.format(i)] * mx.nd.dot(w * edges.src['h'])
             return msg_dic
 
         def reduce_func(nodes):
@@ -112,7 +116,6 @@ class MultiLinkGCNAggregator(Block):
 
         h = self.g[self._dst_key].ndata.pop('h')
         return h
-
 
 class GCMCLayer(Block):
     def __init__(self, uv_graph, vu_graph, src_key, dst_key, in_units, agg_units, out_units, num_links,
