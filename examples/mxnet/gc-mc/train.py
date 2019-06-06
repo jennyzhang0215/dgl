@@ -181,8 +181,8 @@ def train(args):
             loss.backward()
 
         count_loss += loss.asscalar()
-        # gnorm = params_clip_global_norm(net.collect_params(), args.train_grad_clip, args.ctx)
-        #avg_gnorm += gnorm
+        gnorm = params_clip_global_norm(net.collect_params(), args.train_grad_clip, args.ctx)
+        avg_gnorm += gnorm
         trainer.step(1.0) #, ignore_stale_grad=True)
 
         if iter_idx == 1:
@@ -202,7 +202,7 @@ def train(args):
             train_loss_logger.log(iter=iter_idx,
                                   loss=count_loss/(iter_idx+1), rmse=count_rmse/count_num)
             logging_str = "Iter={}, gnorm={:.3f}, loss={:.4f}, rmse={:4f}".format(
-                iter_idx, avg_gnorm/args.train_log_interval, count_loss/(iter_idx+1), count_rmse/count_num)
+                iter_idx, avg_gnorm/args.train_log_interval, count_loss/iter_idx, count_rmse/count_num)
             avg_gnorm = 0
             count_rmse = 0
             count_num = 0
