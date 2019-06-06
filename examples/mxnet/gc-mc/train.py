@@ -31,7 +31,7 @@ def load_dataset(args):
 
     return dataset, feature_dict
 
-class Net(HybridBlock):
+class Net(Block):
     def __init__(self, uv_graph, vu_graph, src_key, dst_key, nratings, num_links, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._nratings = nratings
@@ -58,7 +58,7 @@ class Net(HybridBlock):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def hybrid_forward(self, F, user_fea, movie_fea, rating_node_pairs):
+    def forward(self, user_fea, movie_fea, rating_node_pairs):
         user_out, movie_out = self.encoder(user_fea, movie_fea)
         # Generate the predicted ratings
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])

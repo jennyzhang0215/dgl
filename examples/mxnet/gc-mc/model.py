@@ -39,7 +39,7 @@ class LayerDictionary(HybridBlock):
         return key in self._key2idx
 
 
-class MultiLinkGCNAggregator(HybridBlock):
+class MultiLinkGCNAggregator(Block):
     def __init__(self, g, src_key, dst_key, units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
@@ -51,20 +51,31 @@ class MultiLinkGCNAggregator(HybridBlock):
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self.act = get_activation(act)
+            self.weight_l = []
+            self.bias_l = []
             for i in range(num_links):
-                self.__setattr__('weight{}'.format(i),
-                                 self.params.get('weight{}'.format(i),
+                # self.__setattr__('weight{}'.format(i),
+                #                  self.params.get('weight{}'.format(i),
+                #                                  shape=(units, 0),
+                #                                  dtype=np.float32,
+                #                                  allow_deferred_init=True))
+                # self.__setattr__('bias{}'.format(i),
+                #                  self.params.get('bias{}'.format(i),
+                #                                  shape=(units,),
+                #                                  dtype=np.float32,
+                #                                  init='zeros',
+                #                                  allow_deferred_init=True))
+                self.weight_l.append(self.params.get('weight{}'.format(i),
                                                  shape=(units, 0),
                                                  dtype=np.float32,
                                                  allow_deferred_init=True))
-                self.__setattr__('bias{}'.format(i),
-                                 self.params.get('bias{}'.format(i),
+                self.bias_l.append(self.params.get('bias{}'.format(i),
                                                  shape=(units,),
                                                  dtype=np.float32,
                                                  init='zeros',
                                                  allow_deferred_init=True))
 
-    def hybrid_forward(self, F, src_input, dst_input, **kwargs):
+    def forward(self, src_input, dst_input):
         src_input = self.dropout(src_input)
         dst_input = self.dropout(dst_input)
         print("self._src_key", self._src_key)
@@ -74,17 +85,19 @@ class MultiLinkGCNAggregator(HybridBlock):
         def message_func(edges):
             msg_dic = {}
             for i in range(self._num_links):
-                w = kwargs['weight{}'.format(i)]
+                # w = kwargs['weight{}'.format(i)]
+                w = self.weight_l[i]
                 msg_dic['msg{}'.format(i)] = w * edges.src['h'] * edges.data['support{}'.format(i)]
             return msg_dic
 
         def reduce_func(nodes):
             out_l = []
             for i in range(self._num_links):
-                b = kwargs['bias{}'.format(i)]
-                out_l.append(F.sum(nodes.mailbox['msg{}'.format(i)], 1) + b)
+                # b = kwargs['bias{}'.format(i)]
+                b = self.bias_l[i]
+                out_l.append(mx.nd.sum(nodes.mailbox['msg{}'.format(i)], 1) + b)
             if self._accum == "sum":
-                return {'accum': F.add_n(*out_l)}
+                return {'accum': mx.nd.add_n(*out_l)}
             elif self._accum == "stack":
                 return {'accum': F.concat(*out_l, dim=1)}
             else:
@@ -102,7 +115,7 @@ class MultiLinkGCNAggregator(HybridBlock):
         return h
 
 
-class GCMCLayer(HybridBlock):
+class GCMCLayer(Block):
     def __init__(self, uv_graph, vu_graph, src_key, dst_key, agg_units, out_units, num_links,
                  dropout_rate=0.0, agg_accum='stack', agg_act=None, out_act=None,
                  agg_ordinal_sharing=False, share_agg_weights=False, share_out_fc_weights=False,
@@ -118,23 +131,23 @@ class GCMCLayer(HybridBlock):
             self._aggregators = LayerDictionary(prefix='agg_')
             with self._aggregators.name_scope():
                 self._aggregators[src_key] = MultiLinkGCNAggregator(g=uv_graph,
-                                                                               src_key=src_key,
-                                                                               dst_key=dst_key,
-                                                                               units = agg_units,
-                                                                               num_links=num_links,
-                                                                               dropout_rate=dropout_rate,
-                                                                               accum=agg_accum,
-                                                                               act=agg_act,
-                                                                               prefix='{}_{}_'.format(src_key, dst_key))
+                                                                    src_key=src_key,
+                                                                    dst_key=dst_key,
+                                                                    units = agg_units,
+                                                                    num_links=num_links,
+                                                                    dropout_rate=dropout_rate,
+                                                                    accum=agg_accum,
+                                                                    act=agg_act,
+                                                                    prefix='{}_{}_'.format(src_key, dst_key))
                 self._aggregators[dst_key] = MultiLinkGCNAggregator(g=vu_graph,
-                                                                               src_key=dst_key,
-                                                                               dst_key=src_key,
-                                                                               units=agg_units,
-                                                                               num_links=num_links,
-                                                                               dropout_rate=dropout_rate,
-                                                                               accum=agg_accum,
-                                                                               act=agg_act,
-                                                                               prefix='{}_{}_'.format(dst_key, src_key))
+                                                                    src_key=dst_key,
+                                                                    dst_key=src_key,
+                                                                    units=agg_units,
+                                                                    num_links=num_links,
+                                                                    dropout_rate=dropout_rate,
+                                                                    accum=agg_accum,
+                                                                    act=agg_act,
+                                                                    prefix='{}_{}_'.format(dst_key, src_key))
             self._out_fcs = LayerDictionary(prefix='out_fc_')
             with self._out_fcs.name_scope():
                 self._out_fcs[src_key] = nn.Dense(out_units, flatten=False,
@@ -144,7 +157,7 @@ class GCMCLayer(HybridBlock):
 
             self._out_act = get_activation(out_act)
 
-    def hybrid_forward(self, F, user_fea, movie_fea):
+    def forward(self, user_fea, movie_fea):
         movie_h = self._aggregators[self._src_key](user_fea, movie_fea)
         user_h = self._aggregators[self._dst_key](movie_fea, user_fea)
         out_user = self._out_act(self._out_fcs[self._src_key](user_h))
