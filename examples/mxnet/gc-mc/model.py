@@ -87,9 +87,9 @@ class MultiLinkGCNAggregator(Block):
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.weights.data()[i]
-                print("w", w.shape)
-                print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
-                print("edges.src['h']", edges.src['h'])
+                # print("w", w.shape)
+                # print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
+                # print("edges.src['h']", edges.src['h'])
                 msg_dic['msg{}'.format(i)] = mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1))\
                                              * mx.nd.dot(edges.src['h'], w, transpose_b=True)
             return msg_dic
@@ -108,7 +108,7 @@ class MultiLinkGCNAggregator(Block):
                 raise NotImplementedError
 
         def apply_node_func(nodes):
-            return {'h': self._act(nodes.data['accum'])}
+            return {'h': self.act(nodes.data['accum'])}
 
         self.g.register_message_func(message_func)
         self.g[self._dst_key].register_reduce_func(reduce_func)
