@@ -77,12 +77,12 @@ class MultiLinkGCNAggregator(Block):
     def forward(self, src_input, dst_input):
         src_input = self.dropout(src_input)
         dst_input = self.dropout(dst_input)
-        print("self._src_key", self._src_key)
-        print("self._dst_key", self._dst_key)
+        #print("self._src_key", self._src_key)
+        #print("self._dst_key", self._dst_key)
         self.g[self._src_key].ndata['fea'] = src_input
         self.g[self._dst_key].ndata['fea'] = dst_input
         def message_func(edges):
-            print("\n\n In the message function ...")
+            #print("\n\n In the message function ...")
             msg_dic = {}
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
@@ -142,7 +142,7 @@ class GCMCLayer(Block):
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
                                                                     act=agg_act,
-                                                                    prefix='{}_{}_'.format(src_key, dst_key))
+                                                                    prefix='{}_'.format(src_key))
                 self._aggregators[dst_key] = MultiLinkGCNAggregator(g=vu_graph,
                                                                     src_key=dst_key,
                                                                     dst_key=src_key,
@@ -152,7 +152,7 @@ class GCMCLayer(Block):
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
                                                                     act=agg_act,
-                                                                    prefix='{}_{}_'.format(dst_key, src_key))
+                                                                    prefix='{}_'.format(dst_key))
             self._out_fcs = LayerDictionary(prefix='out_fc_')
             with self._out_fcs.name_scope():
                 self._out_fcs[src_key] = nn.Dense(out_units, flatten=False,
