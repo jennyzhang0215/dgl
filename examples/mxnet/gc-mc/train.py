@@ -83,11 +83,9 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
 
     if segment == "valid":
-        #eval_uv_graph, eval_vu_graph = dataset.uv_train_graph, dataset.vu_train_graph
         rating_pairs = dataset.valid_rating_pairs
         rating_values = dataset.valid_rating_values
     elif segment == "test":
-        #eval_uv_graph, eval_vu_graph = dataset.uv_test_graph, dataset.vu_test_graph
         rating_pairs = dataset.test_rating_pairs
         rating_values = dataset.test_rating_values
     else:
@@ -277,14 +275,14 @@ def config():
     parser.add_argument('--gen_r_use_classification', type=bool, default=False)
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
-    parser.add_argument('--train_rating_batch_size', type=int, default=10000)
+    # parser.add_argument('--train_rating_batch_size', type=int, default=10000)
     parser.add_argument('--train_max_iter', type=int, default=100000)
     parser.add_argument('--train_log_interval', type=int, default=1)
-    parser.add_argument('--train_valid_interval', type=int, default=10)
+    parser.add_argument('--train_valid_interval', type=int, default=1)
     parser.add_argument('--train_optimizer', type=str, default="adam")
-    parser.add_argument('--train_grad_clip', type=float, default=10.0)
+    parser.add_argument('--train_grad_clip', type=float, default=1.0)
     parser.add_argument('--train_lr', type=float, default=0.01)
-    parser.add_argument('--train_min_lr', type=float, default=0.0001)
+    parser.add_argument('--train_min_lr', type=float, default=0.001)
     parser.add_argument('--train_lr_decay_factor', type=float, default=0.5)
     parser.add_argument('--train_decay_patience', type=int, default=50)
     parser.add_argument('--train_early_stopping_patience', type=int, default=150)
