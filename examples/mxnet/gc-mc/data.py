@@ -307,8 +307,8 @@ class MovieLens(object):
             genre_map = {ele: i for i, ele in enumerate(GENRES)}
             genre_map['Children\'s'] = genre_map['Children']
             genre_map['Childrens'] = genre_map['Children']
-            movie_genres = np.zeros(shape=(self.movie_info.shape[0], len(GENRES)), dtype=np.float32)
-            for i, genres in enumerate(self.movie_info['genres']):
+            movie_genres = np.zeros(shape=(movie_info.shape[0], len(GENRES)), dtype=np.float32)
+            for i, genres in enumerate(movie_info['genres']):
                 for ele in genres.split('|'):
                     if ele in genre_map:
                         movie_genres[i, genre_map[ele]] = 1.0
