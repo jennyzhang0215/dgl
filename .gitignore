@@ -146,4 +146,3 @@ cscope.*
 *~
 *.iml
 *.xml
-examples/mxnet/gc-mc/data_set/ml-1m/README
