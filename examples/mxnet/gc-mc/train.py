@@ -255,7 +255,7 @@ def config():
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1)
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
-    parser.add_argument('--use_one_hot_fea', type=bool, default=True)
+    parser.add_argument('--use_one_hot_fea', type=bool, default=False)
 
 
     #parser.add_argument('--model_remove_rating', type=bool, default=False)
@@ -264,7 +264,7 @@ def config():
     parser.add_argument('--gcn_dropout', type=float, default=0.7)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
     parser.add_argument('--gcn_agg_units', type=int, default=100)
-    parser.add_argument('--gcn_agg_accum', type=str, default="sum")
+    parser.add_argument('--gcn_agg_accum', type=str, default="stack")
     # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
     # parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
