@@ -83,11 +83,11 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
 
     if segment == "valid":
-        eval_uv_graph, eval_vu_graph = dataset.uv_train_graph, dataset.vu_train_graph
+        #eval_uv_graph, eval_vu_graph = dataset.uv_train_graph, dataset.vu_train_graph
         rating_pairs = dataset.valid_rating_pairs
         rating_values = dataset.valid_rating_values
     elif segment == "test":
-        eval_uv_graph, eval_vu_graph = dataset.uv_test_graph, dataset.vu_test_graph
+        #eval_uv_graph, eval_vu_graph = dataset.uv_test_graph, dataset.vu_test_graph
         rating_pairs = dataset.test_rating_pairs
         rating_values = dataset.test_rating_values
     else:
