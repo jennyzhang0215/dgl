@@ -84,6 +84,7 @@ class MovieLens(object):
 
         self.uv_train_graph, self.vu_train_graph = self._generate_graphs(self.train_rating_pairs,
                                                                          self.train_rating_values)
+        print("Multi-link: {}".format(self.num_links))
 
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele]
