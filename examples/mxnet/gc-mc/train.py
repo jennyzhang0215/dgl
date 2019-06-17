@@ -126,7 +126,7 @@ def train(args):
     user_input = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
     movie_input = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
-    assert feature_dict["user"].shape[1] == feature_dict["movie"].shape[1]
+    #assert feature_dict["user"].shape[1] == feature_dict["movie"].shape[1]
 
     ### build the net
     net = Net(uv_graph=uv_train_graph,
