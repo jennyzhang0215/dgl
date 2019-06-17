@@ -256,7 +256,7 @@ def config():
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1)
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
-    parser.add_argument('--use_one_hot_fea', type=bool, default=False)
+    parser.add_argument('--use_one_hot_fea', type=bool, default=True)
 
     #parser.add_argument('--model_remove_rating', type=bool, default=False)
     parser.add_argument('--model_activation', type=str, default="leaky")
