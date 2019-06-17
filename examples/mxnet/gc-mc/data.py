@@ -78,14 +78,14 @@ class MovieLens(object):
         #print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
         #print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
-        self.train_rating_pairs, self.train_rating_values = self._generata_pair_value(self.train_rating_info)
-        self.valid_rating_pairs, self.valid_rating_values = self._generata_pair_value(self.valid_rating_info)
-        self.test_rating_pairs, self.test_rating_values = self._generata_pair_value(self.test_rating_info)
+        self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
+        self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
+        self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
         self.uv_train_graph, self.vu_train_graph = self._generate_graphs(self.train_rating_pairs,
                                                                          self.train_rating_values)
 
-    def _generata_pair_value(self, rating_info):
+    def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele]
                                   for ele in rating_info["user_id"]], dtype=np.int64),
                         np.array([self.global_movie_id_map[ele]
@@ -139,17 +139,22 @@ class MovieLens(object):
     @property
     def possible_rating_values(self):
         return np.unique(self.train_rating_info["rating"].values)
-
     @property
     def num_links(self):
         return self.possible_rating_values.size
     @property
     def name_user(self):
         return "user"
-
     @property
     def name_movie(self):
         return "movie"
+    @property
+    def num_user(self):
+        return self._num_user
+    @property
+    def num_movie(self):
+        return self._num_movie
+
 
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
         print("  -----------------")

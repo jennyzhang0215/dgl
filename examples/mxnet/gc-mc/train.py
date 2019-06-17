@@ -18,12 +18,11 @@ def load_dataset(args):
     # !IMPORTANT. We need to check that ids in all_graph are continuous from 0 to #Node - 1.
     # We will later use these ids to take the embedding vectors
     feature_dict = dict()
-    nd_user_indices = mx.nd.arange(dataset.user_features.shape[0], ctx=args.ctx)
-    nd_item_indices = mx.nd.arange(dataset.movie_features.shape[0], ctx=args.ctx)
-    user_item_total = dataset.user_features.shape[0] + dataset.movie_features.shape[0]
+    nd_user_indices = mx.nd.arange(dataset.num_user, ctx=args.ctx)
+    nd_item_indices = mx.nd.arange(dataset.num_movie, ctx=args.ctx)
     if args.use_one_hot_fea:
-        feature_dict["user"] = mx.nd.one_hot(nd_user_indices, user_item_total)
-        feature_dict["movie"] = mx.nd.one_hot(nd_item_indices + nd_user_indices.shape[0], user_item_total)
+        feature_dict["user"] = mx.nd.one_hot(nd_user_indices, dataset.num_user)
+        feature_dict["movie"] = mx.nd.one_hot(nd_item_indices, dataset.num_movie)
     else:
         feature_dict["user"] = dataset.user_features
         feature_dict["movie"] = dataset.movie_features
@@ -257,13 +256,12 @@ def config():
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
     parser.add_argument('--use_one_hot_fea', type=bool, default=False)
 
-
     #parser.add_argument('--model_remove_rating', type=bool, default=False)
     parser.add_argument('--model_activation', type=str, default="leaky")
 
     parser.add_argument('--gcn_dropout', type=float, default=0.7)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
-    parser.add_argument('--gcn_agg_units', type=int, default=100)
+    parser.add_argument('--gcn_agg_units', type=int, default=500)
     parser.add_argument('--gcn_agg_accum', type=str, default="stack")
     # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
