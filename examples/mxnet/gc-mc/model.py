@@ -48,13 +48,10 @@ class MultiLinkGCNAggregator(Block):
         self._dst_key = dst_key
         self._accum = accum
         self._num_links = num_links
+        self._units = units
         if accum == "stack":
             assert units % num_links == 0, 'units should be divisible by the num_links '
             self._units = self._units // num_links
-        elif accum == "sum":
-            self._units = units
-        else:
-            raise NotImplementedError
 
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
