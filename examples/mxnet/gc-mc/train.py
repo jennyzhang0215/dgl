@@ -37,27 +37,26 @@ def load_dataset(args):
     return dataset, feature_dict
 
 class Net(Block):
-    def __init__(self, uv_graph, vu_graph, src_key, dst_key, src_in_units, dst_in_units, nratings, num_links, args, **kwargs):
+    def __init__(self, uv_graph, vu_graph, args, **kwargs):
         super(Net, self).__init__(**kwargs)
-        self._nratings = nratings
         self._act = get_activation(args.model_activation)
         with self.name_scope():
             self.encoder = GCMCLayer(uv_graph=uv_graph,
                                      vu_graph=vu_graph,
-                                     src_key=src_key,
-                                     dst_key=dst_key,
-                                     src_in_units=src_in_units,
-                                     dst_in_units=dst_in_units,
+                                     src_key=args.src_key,
+                                     dst_key=args.dst_key,
+                                     src_in_units=args.src_in_units,
+                                     dst_in_units=args.dst_in_units,
                                      agg_units=args.gcn_agg_units,
                                      out_units=args.gcn_out_units,
-                                     num_links=num_links,
+                                     num_links=args.nratings,
                                      dropout_rate=args.gcn_dropout,
                                      agg_accum=args.gcn_agg_accum,
                                      agg_act=args.model_activation,
                                      prefix='enc_')
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
-                                             out_units=nratings,
+                                             out_units=args.nratings,
                                              num_basis_functions=args.gen_r_num_basis_func,
                                              prefix='gen_rating')
             else:
@@ -126,15 +125,14 @@ def train(args):
     print("Preparing data finished ...\n")
     #assert feature_dict["user"].shape[1] == feature_dict["movie"].shape[1]
 
+    args.src_key = dataset.name_user
+    args.dst_key = dataset.name_movie
+    args.src_in_units = feature_dict["user"].shape[1]
+    args.dst_in_units = feature_dict["movie"].shape[1]
+    args.nratings = possible_rating_values.size
     ### build the net
     net = Net(uv_graph=uv_train_graph,
               vu_graph=vu_train_graph,
-              src_in_units=feature_dict["user"].shape[1],
-              dst_in_units=feature_dict["movie"].shape[1],
-              src_key=dataset.name_user,
-              dst_key=dataset.name_movie,
-              nratings=possible_rating_values.size,
-              num_links=dataset.num_links,
               args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
