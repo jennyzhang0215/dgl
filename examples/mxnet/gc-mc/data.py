@@ -342,6 +342,15 @@ class MovieLens(object):
             Generate movie features by concatenating embedding and the year
 
         """
+        if self._name == 'ml-100k':
+            GENRES = GENRES_ML_100K
+        elif self._name == 'ml-1m':
+            GENRES = GENRES_ML_1M
+        elif self._name == 'ml-10m':
+            GENRES = GENRES_ML_10M
+        else:
+            raise NotImplementedError
+
         title_embedding = np.zeros(shape=(self.movie_info.shape[0], 300), dtype=np.float32)
         release_years = np.zeros(shape=(self.movie_info.shape[0], 1), dtype=np.float32)
         p = re.compile(r'(.+)\s*\((\d+)\)')
@@ -355,7 +364,10 @@ class MovieLens(object):
             # We use average of glove
             title_embedding[i, :] =_word_embedding[_tokenizer(title_context)].asnumpy().mean(axis=0)
             release_years[i] = float(year)
-            self.movie_features = np.concatenate((title_embedding, (release_years - 1950.0) / 100.0), axis=1)
+            self.movie_features = np.concatenate((title_embedding,
+                                                  (release_years - 1950.0) / 100.0,
+                                                  self.movie_info[GENRES]),
+                                                 axis=1)
 
 
     def compute_support(self, adj, num_links, symmetric):
