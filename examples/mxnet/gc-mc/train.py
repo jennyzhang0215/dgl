@@ -54,7 +54,6 @@ class Net(Block):
                                      dropout_rate=args.gcn_dropout,
                                      agg_accum=args.gcn_agg_accum,
                                      agg_act=args.model_activation,
-                                     out_act = args.model_activation,
                                      prefix='enc_')
             if args.gen_r_use_classification:
                 self.gen_ratings = BiDecoder(in_units=args.gcn_out_units,
@@ -120,8 +119,6 @@ def train(args):
     train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
-
-    print("Start preparing graph ...")
     uv_train_graph = dataset.uv_train_graph
     vu_train_graph = dataset.vu_train_graph
     user_input = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
@@ -264,7 +261,7 @@ def config():
     parser.add_argument('--gcn_dropout', type=float, default=0.5)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
     parser.add_argument('--gcn_agg_units', type=int, default=100)
-    parser.add_argument('--gcn_agg_accum', type=str, default="sum")
+    parser.add_argument('--gcn_agg_accum', type=str, default="stack")
     # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
     # parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
