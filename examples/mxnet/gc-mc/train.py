@@ -247,7 +247,7 @@ def config():
     parser.add_argument('--save_id', type=int, help='The saving log id')
     parser.add_argument('--silent', action='store_true')
 
-    parser.add_argument('--data_name', default='ml-1m', type=str,
+    parser.add_argument('--data_name', default='ml-100k', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1)
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
@@ -258,7 +258,7 @@ def config():
 
     parser.add_argument('--gcn_dropout', type=float, default=0.7)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
-    parser.add_argument('--gcn_agg_units', type=int, default=100)
+    parser.add_argument('--gcn_agg_units', type=int, default=500)
     parser.add_argument('--gcn_agg_accum', type=str, default="stack")
     # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
