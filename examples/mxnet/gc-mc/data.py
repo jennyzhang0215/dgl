@@ -91,13 +91,13 @@ class MovieLens(object):
         print("Multi-link: {}".format(self.num_links))
 
     def _generate_pair_value(self, rating_info):
-        rating_pairs = (np.array([self.global_user_id_map[ele]
-                                  for ele in rating_info["user_id"]], dtype=np.int64),
-                        np.array([self.global_movie_id_map[ele]
-                                  for ele in rating_info["movie_id"]], dtype=np.int64))
+        rating_pairs = np.array(np.array([self.global_user_id_map[ele]
+                                          for ele in rating_info["user_id"]], dtype=np.int64),
+                                np.array([self.global_movie_id_map[ele]
+                                          for ele in rating_info["movie_id"]], dtype=np.int64))
         rating_values = rating_info["rating"].values.astype(np.float32)
         print("rating_pairs", rating_pairs.shape, rating_pairs)
-        return np.array(rating_pairs, dtype=np.int64), rating_values
+        return rating_pairs, rating_values
 
     def _generate_graphs(self, rating_pairs, rating_values):
         print("rating_pairs", rating_pairs.shape)
