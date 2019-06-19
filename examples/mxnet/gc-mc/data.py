@@ -96,8 +96,8 @@ class MovieLens(object):
                         np.array([self.global_movie_id_map[ele]
                                   for ele in rating_info["movie_id"]], dtype=np.int64))
         rating_values = rating_info["rating"].values.astype(np.float32)
-
-        return rating_pairs, rating_values
+        print("rating_pairs", rating_pairs.shape, rating_pairs)
+        return np.array(rating_pairs, dtype=np.int64), rating_values
 
     def _generate_graphs(self, rating_pairs, rating_values):
         print("rating_pairs", rating_pairs.shape)
