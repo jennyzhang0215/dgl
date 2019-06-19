@@ -11,7 +11,7 @@ from model import GCMCLayer, BiDecoder, InnerProductLayer
 from utils import get_activation, parse_ctx, gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
 from mxnet.gluon import nn, HybridBlock, Block
-
+import time
 
 def load_dataset(args):
     dataset = MovieLens(args.data_name, args.ctx, symm=args.gcn_agg_norm_symm)
@@ -37,13 +37,11 @@ def load_dataset(args):
     return dataset, feature_dict
 
 class Net(Block):
-    def __init__(self, uv_graph, vu_graph, args, **kwargs):
+    def __init__(self, args, **kwargs):
         super(Net, self).__init__(**kwargs)
         self._act = get_activation(args.model_activation)
         with self.name_scope():
-            self.encoder = GCMCLayer(uv_graph=uv_graph,
-                                     vu_graph=vu_graph,
-                                     src_key=args.src_key,
+            self.encoder = GCMCLayer(src_key=args.src_key,
                                      dst_key=args.dst_key,
                                      src_in_units=args.src_in_units,
                                      dst_in_units=args.dst_in_units,
@@ -63,12 +61,16 @@ class Net(Block):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def forward(self, user_fea, movie_fea, rating_node_pairs):
-        user_out, movie_out = self.encoder(user_fea, movie_fea)
+    def forward(self, uv_graph, vu_graph, user_fea, movie_fea, rating_node_pairs):
+        start = time.time()
+        user_out, movie_out = self.encoder(uv_graph, vu_graph, user_fea, movie_fea)
+        print("The time for encoder is: {:.1f}s".format(time.time()-start))
         # Generate the predicted ratings
+        start = time.time()
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
         rating_item_fea = mx.nd.take(movie_out, rating_node_pairs[1])
         pred_ratings = self.gen_ratings(rating_user_fea, rating_item_fea)
+        print("The time for decoder is: {:.1f}s".format(time.time()-start))
 
         return pred_ratings
 
@@ -95,7 +97,7 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     rating_values = mx.nd.array(rating_values, ctx=args.ctx, dtype=np.float32)
 
     # Evaluate RMSE
-    pred_ratings = net(user_input, movie_input, rating_pairs)
+    pred_ratings = net(dataset.uv_train_graph, dataset.vu_train_graph, user_input, movie_input, rating_pairs)
     if args.gen_r_use_classification:
         real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                              nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
@@ -131,9 +133,7 @@ def train(args):
     args.dst_in_units = feature_dict["movie"].shape[1]
     args.nratings = possible_rating_values.size
     ### build the net
-    net = Net(uv_graph=uv_train_graph,
-              vu_graph=vu_train_graph,
-              args=args)
+    net = Net(args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
@@ -167,7 +167,7 @@ def train(args):
             train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
-            pred_ratings = net(user_input, movie_input, train_rating_pairs)
+            pred_ratings = net(uv_train_graph, vu_train_graph, user_input, movie_input, train_rating_pairs)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:

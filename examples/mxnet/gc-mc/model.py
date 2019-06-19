@@ -40,10 +40,9 @@ class LayerDictionary(Block):
 
 
 class MultiLinkGCNAggregator(Block):
-    def __init__(self, g, src_key, dst_key, units, in_units, num_links,
+    def __init__(self, src_key, dst_key, units, in_units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
-        self.g = g
         self._src_key = src_key
         self._dst_key = dst_key
         self._accum = accum
@@ -79,13 +78,13 @@ class MultiLinkGCNAggregator(Block):
             #                               init='zeros',
             #                               allow_deferred_init=True)
 
-    def forward(self, src_input, dst_input):
+    def forward(self, g, src_input, dst_input):
         src_input = self.dropout(src_input)
         dst_input = self.dropout(dst_input)
         #print("self._src_key", self._src_key)
         #print("self._dst_key", self._dst_key)
-        self.g[self._src_key].ndata['fea'] = src_input
-        self.g[self._dst_key].ndata['fea'] = dst_input
+        g[self._src_key].ndata['fea'] = src_input
+        g[self._dst_key].ndata['fea'] = dst_input
         def message_func(edges):
             #print("\n\n In the message function ...")
             msg_dic = {}
@@ -115,31 +114,28 @@ class MultiLinkGCNAggregator(Block):
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
 
-        self.g.register_message_func(message_func)
-        self.g[self._dst_key].register_reduce_func(reduce_func)
-        self.g[self._dst_key].register_apply_node_func(apply_node_func)
-        self.g.send_and_recv(self.g.edges('uv', 'srcdst'))
+        g.register_message_func(message_func)
+        g[self._dst_key].register_reduce_func(reduce_func)
+        g[self._dst_key].register_apply_node_func(apply_node_func)
+        g.send_and_recv(self.g.edges('uv', 'srcdst'))
 
-        h = self.g[self._dst_key].ndata.pop('h')
+        h = g[self._dst_key].ndata.pop('h')
         return h
 
 class GCMCLayer(Block):
-    def __init__(self, uv_graph, vu_graph, src_key, dst_key, src_in_units, dst_in_units, agg_units, out_units, num_links,
+    def __init__(self, src_key, dst_key, src_in_units, dst_in_units, agg_units, out_units, num_links,
                  dropout_rate=0.0, agg_accum='stack', agg_act=None, out_act=None,
-                 agg_ordinal_sharing=False, share_agg_weights=False, share_out_fc_weights=False,
+                 # agg_ordinal_sharing=False, share_agg_weights=False, share_out_fc_weights=False,
                  **kwargs):
         super(GCMCLayer, self).__init__(**kwargs)
         self._out_act = get_activation(out_act)
-        self.uv_graph = uv_graph
-        self.vu_graph = vu_graph
         self._src_key = src_key
         self._dst_key = dst_key
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate)
             self._aggregators = LayerDictionary(prefix='agg_')
             with self._aggregators.name_scope():
-                self._aggregators[src_key] = MultiLinkGCNAggregator(g=uv_graph,
-                                                                    src_key=src_key,
+                self._aggregators[src_key] = MultiLinkGCNAggregator(src_key=src_key,
                                                                     dst_key=dst_key,
                                                                     units = agg_units,
                                                                     in_units=src_in_units,
@@ -148,8 +144,7 @@ class GCMCLayer(Block):
                                                                     accum=agg_accum,
                                                                     act=agg_act,
                                                                     prefix='{}_'.format(src_key))
-                self._aggregators[dst_key] = MultiLinkGCNAggregator(g=vu_graph,
-                                                                    src_key=dst_key,
+                self._aggregators[dst_key] = MultiLinkGCNAggregator(src_key=dst_key,
                                                                     dst_key=src_key,
                                                                     in_units=dst_in_units,
                                                                     units=agg_units,
@@ -167,9 +162,9 @@ class GCMCLayer(Block):
 
             self._out_act = get_activation(out_act)
 
-    def forward(self, user_fea, movie_fea):
-        movie_h = self._aggregators[self._src_key](user_fea, movie_fea)
-        user_h = self._aggregators[self._dst_key](movie_fea, user_fea)
+    def forward(self, uv_graph, vu_graph, user_fea, movie_fea):
+        movie_h = self._aggregators[self._src_key](uv_graph, user_fea, movie_fea)
+        user_h = self._aggregators[self._dst_key](vu_graph, movie_fea, user_fea)
         out_user = self._out_act(self._out_fcs[self._src_key](user_h))
         out_movie = self._out_act(self._out_fcs[self._dst_key](movie_h))
         return out_user, out_movie
