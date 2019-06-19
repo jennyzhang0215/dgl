@@ -85,6 +85,11 @@ class MovieLens(object):
         self.uv_train_graph, self.vu_train_graph = self._generate_graphs(self.train_rating_pairs,
                                                                          self.train_rating_values)
 
+        test_graph_edges = np.concatenate((self.train_rating_pairs, self.valid_rating_pairs), axis=1)
+        test_graph_labels = np.concatenate((self.train_rating_values, self.valid_rating_values))
+        print("test_graph_edges:", test_graph_edges.shape)
+        print("test_graph_label:", test_graph_labels.shape)
+
         print("Multi-link: {}".format(self.num_links))
 
     def _generate_pair_value(self, rating_info):
