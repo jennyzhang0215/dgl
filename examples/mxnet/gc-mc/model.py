@@ -117,7 +117,7 @@ class MultiLinkGCNAggregator(Block):
         g.register_message_func(message_func)
         g[self._dst_key].register_reduce_func(reduce_func)
         g[self._dst_key].register_apply_node_func(apply_node_func)
-        g.send_and_recv(self.g.edges('uv', 'srcdst'))
+        g.send_and_recv(g.edges('uv', 'srcdst'))
 
         h = g[self._dst_key].ndata.pop('h')
         return h
