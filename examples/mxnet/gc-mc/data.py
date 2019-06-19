@@ -100,6 +100,8 @@ class MovieLens(object):
         return rating_pairs, rating_values
 
     def _generate_graphs(self, rating_pairs, rating_values):
+        print("rating_pairs", rating_pairs.shape)
+        print("rating_values", rating_values.shape)
         user_movie_ratings_coo = sp.coo_matrix(
             (rating_values, rating_pairs),
             shape=(self._num_user, self._num_movie),dtype=np.float32)
