@@ -4,6 +4,7 @@ import warnings
 from mxnet.gluon import nn, HybridBlock, Block
 from utils import get_activation
 import mxnet as mx
+import dgl.function as fn
 
 class LayerDictionary(Block):
     def __init__(self, **kwargs):
@@ -85,29 +86,22 @@ class MultiLinkGCNAggregator(Block):
         #print("self._dst_key", self._dst_key)
         g[self._src_key].ndata['fea'] = src_input
         g[self._dst_key].ndata['fea'] = dst_input
+
         def message_func(edges):
             #print("\n\n In the message function ...")
-            msg_dic = {}
+            msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.weights.data()[i]
                 # print("w", w.shape)
                 # print("edges.data['support{}')]".format(i), edges.data['support{}'.format(i)] )
                 # print("edges.src['h']", edges.src['h'])
-                msg_dic['msg{}'.format(i)] = mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1))\
-                                             * mx.nd.dot(edges.src['fea'], w, transpose_b=True)
-            return msg_dic
-
-        def reduce_func(nodes):
-            out_l = []
-            for i in range(self._num_links):
-                # b = kwargs['bias{}'.format(i)]
-                # b = self.biases.data()[i]
-                out_l.append(mx.nd.sum(nodes.mailbox['msg{}'.format(i)], 1))
+                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+                               * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
-                return {'accum': mx.nd.add_n(*out_l)}
+                return {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
-                return {'accum': mx.nd.concat(*out_l, dim=1)}
+                return {'msg': mx.nd.concat(*msgs, dim=1)}
             else:
                 raise NotImplementedError
 
@@ -115,7 +109,7 @@ class MultiLinkGCNAggregator(Block):
             return {'h': self.act(nodes.data['accum'])}
 
         g.register_message_func(message_func)
-        g[self._dst_key].register_reduce_func(reduce_func)
+        g[self._dst_key].register_reduce_func(fn.sum('accum', 'msg'))
         g[self._dst_key].register_apply_node_func(apply_node_func)
         g.send_and_recv(g.edges('uv', 'srcdst'))
 

@@ -32,25 +32,26 @@ class MovieLens(object):
         self._load_raw_user_info()
         self._load_raw_movie_info()
         if self._name == 'ml-100k':
-            train_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.base'), '\t')
+            self.all_train_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.base'), '\t')
             self.test_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'u1.test'), '\t')
-            self.all_rating_info = pd.concat([train_rating_info, self.test_rating_info])
+            self.all_rating_info = pd.concat([self.all_train_rating_info, self.test_rating_info])
         elif self._name == 'ml-1m' or self._name == 'ml-10m':
             self.all_rating_info = self._load_raw_rates(os.path.join(READ_DATASET_PATH, self._name, 'ratings.dat'), '::')
             num_test = int(np.ceil(self.all_rating_info.shape[0] * self._test_ratio))
             shuffled_idx = np.random.permutation(self.all_rating_info.shape[0])
             self.test_rating_info = self.all_rating_info.iloc[shuffled_idx[: num_test]]
-            train_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
+            self.all_train_rating_info = self.all_rating_info.iloc[shuffled_idx[num_test: ]]
         else:
             raise NotImplementedError
-        num_valid = int(np.ceil(train_rating_info.shape[0] * self._valid_ratio))
-        shuffled_idx = np.random.permutation(train_rating_info.shape[0])
-        self.valid_rating_info = train_rating_info.iloc[shuffled_idx[: num_valid]]
-        self.train_rating_info = train_rating_info.iloc[shuffled_idx[num_valid: ]]
+        num_valid = int(np.ceil(self.all_train_rating_info.shape[0] * self._valid_ratio))
+        shuffled_idx = np.random.permutation(self.all_train_rating_info.shape[0])
+        self.valid_rating_info = self.all_train_rating_info.iloc[shuffled_idx[: num_valid]]
+        self.train_rating_info = self.all_train_rating_info.iloc[shuffled_idx[num_valid: ]]
 
         print("All rating pairs : {}".format(self.all_rating_info.shape[0]))
-        print("\tTrain rating pairs : {}".format(self.train_rating_info.shape[0]))
-        print("\tValid rating pairs : {}".format(self.valid_rating_info.shape[0]))
+        print("\tAll train rating pairs : {}".format(self.all_train_rating_info.shape[0]))
+        print("\t\tTrain rating pairs : {}".format(self.train_rating_info.shape[0]))
+        print("\t\tValid rating pairs : {}".format(self.valid_rating_info.shape[0]))
         print("\tTest rating pairs  : {}".format(self.test_rating_info.shape[0]))
 
         self.user_info = self._drop_unseen_nodes(orign_info=self.user_info,
@@ -78,17 +79,13 @@ class MovieLens(object):
         #print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
         #print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
 
+        all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
         self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
-        self.uv_train_graph, self.vu_train_graph = self._generate_graphs(self.train_rating_pairs,
-                                                                         self.train_rating_values)
-        self.uv_test_graph, self.vu_test_graph = \
-            self._generate_graphs(np.concatenate((self.train_rating_pairs, self.valid_rating_pairs), axis=1),
-                                  np.concatenate((self.train_rating_values, self.valid_rating_values)))
-
-        print("Multi-link: {}".format(self.num_links))
+        self.uv_test_graph, self.vu_test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
+        self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
 
     def _generate_pair_value(self, rating_info):
         rating_pairs = np.array(np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
