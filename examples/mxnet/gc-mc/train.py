@@ -62,15 +62,15 @@ class Net(Block):
 
 
     def forward(self, uv_graph, vu_graph, user_fea, movie_fea, rating_node_pairs):
-        start = time.time()
+        # start = time.time()
         user_out, movie_out = self.encoder(uv_graph, vu_graph, user_fea, movie_fea)
-        print("The time for encoder is: {:.1f}s".format(time.time()-start))
+        #print("The time for encoder is: {:.1f}s".format(time.time()-start))
         # Generate the predicted ratings
-        start = time.time()
+        #start = time.time()
         rating_user_fea = mx.nd.take(user_out, rating_node_pairs[0])
         rating_item_fea = mx.nd.take(movie_out, rating_node_pairs[1])
         pred_ratings = self.gen_ratings(rating_user_fea, rating_item_fea)
-        print("The time for decoder is: {:.1f}s".format(time.time()-start))
+        #print("The time for decoder is: {:.1f}s".format(time.time()-start))
 
         return pred_ratings
 
@@ -247,7 +247,7 @@ def config():
     parser.add_argument('--save_id', type=int, help='The saving log id')
     parser.add_argument('--silent', action='store_true')
 
-    parser.add_argument('--data_name', default='ml-100k', type=str,
+    parser.add_argument('--data_name', default='ml-1m', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1)
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
