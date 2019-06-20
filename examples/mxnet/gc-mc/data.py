@@ -84,21 +84,16 @@ class MovieLens(object):
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
-        self.uv_test_graph, self.vu_test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
-        self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
+        self.uv_train_graph, self.uv_train_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
+        #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
 
     def _generate_pair_value(self, rating_info):
-        rating_pairs = np.array(np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
-                                         dtype=np.int64),
-                                np.array([self.global_movie_id_map[ele] for ele in rating_info["movie_id"]],
-                                         dtype=np.int64))
+        rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]], dtype=np.int64),
+                        np.array([self.global_movie_id_map[ele] for ele in rating_info["movie_id"]], dtype=np.int64))
         rating_values = rating_info["rating"].values.astype(np.float32)
-        print("rating_pairs", rating_pairs.shape, rating_pairs)
         return rating_pairs, rating_values
 
     def _generate_graphs(self, rating_pairs, rating_values):
-        print("rating_pairs", rating_pairs.shape)
-        print("rating_values", rating_values.shape)
         user_movie_ratings_coo = sp.coo_matrix(
             (rating_values, rating_pairs),
             shape=(self._num_user, self._num_movie),dtype=np.float32)
