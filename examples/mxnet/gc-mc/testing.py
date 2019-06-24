@@ -91,7 +91,7 @@ def gen_bipartite():
     print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
 
     g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)
-    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)
+    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx) * 2
 
     def msg_func(edges):
         # print("edges.src['h']", edges.src['h'])
