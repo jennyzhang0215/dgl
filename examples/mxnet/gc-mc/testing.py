@@ -110,8 +110,10 @@ def gen_bipartite():
 
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
-    print("g['user']", g['user'].ndata)
+    #print("g['user']", g['user'].ndata)
     print("g1['user']", g1['user'].ndata)
+    print("g1['item']", g1['item'].ndata)
+
 
     print(g["user"].ndata.pop('res'))
 
