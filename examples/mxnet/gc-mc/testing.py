@@ -86,7 +86,6 @@ def gen_bipartite():
 
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
-    print("#ratings: {}".format(g.number_of_edges()))
     print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
     print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
 
