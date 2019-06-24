@@ -84,7 +84,8 @@ class MovieLens(object):
 
         self.train_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
-
+        print("Train graph: \n\t#user:{}\n\t#movie:{}".format(self.train_graph[self.name_user].number_of_nodes(),
+                                                              self.train_graph[self.name_movie].number_of_nodes()))
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
                                  dtype=np.int64),
@@ -104,12 +105,12 @@ class MovieLens(object):
         movie_user_R = user_movie_R.transpose()
 
         graph = dgl.DGLBipartiteGraph(
-            metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
-                                     ('movie', 'user', 'rating')]),
-            number_of_nodes_by_type={'user': self._num_user,
-                                     'movie': self._num_movie},
-            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
-                                      ('movie', 'user', 'rating'): movie_user_ratings_coo},
+            metagraph=nx.MultiGraph([(self.name_user, self.name_movie, self.name_edge),
+                                     (self.name_movie, self.name_user, self.name_edge)]),
+            number_of_nodes_by_type={self.name_user: self._num_user,
+                                     self.name_movie: self._num_movie},
+            edge_connections_by_type={(self.name_user, self.name_movie, self.name_edge): user_movie_ratings_coo,
+                                      (self.name_movie, self.name_user, self.name_edge): movie_user_ratings_coo},
             readonly=True)
 
         # vu_graph = dgl.DGLBipartiteGraph(
@@ -122,14 +123,14 @@ class MovieLens(object):
 
         uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
         for idx, sup in enumerate(uv_train_support_l):
-            graph['user', 'movie', 'rating'].edges[
+            graph[self.name_user, self.name_movie, self.name_edge].edges[
                 np.array(sup.row, dtype=np.int64),
                 np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
                 mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
 
         vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
         for idx, sup in enumerate(vu_train_support_l):
-            graph['movie', 'user', 'rating'].edges[
+            graph[self.name_movie, self.name_user, self.name_edge].edges[
                 np.array(sup.row, dtype=np.int64),
                 np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
                 mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
@@ -148,6 +149,9 @@ class MovieLens(object):
     @property
     def name_movie(self):
         return "movie"
+    @property
+    def name_edge(self):
+        return "rating"
     @property
     def num_user(self):
         return self._num_user
