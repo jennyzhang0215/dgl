@@ -97,24 +97,11 @@ def gen_bipartite():
         # print("edges.src['h']", edges.src['h'])
         print("edges.src['h']", edges.src['h'])
         return {'m': edges.src['h']}
-
-    def msg_func2(edges):
-        # print("edges.src['h']", edges.src['h'])
-        print("edges.dst['h']", edges.dst['h'])
-        return {'m': edges.dst['h']}
-
     def apply_node_func(nodes):
         return {'res': nodes.data['accum']}
 
-    # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
-    # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
-
-    # print("g1.edges", g1.edges)
-    # print("g2.edges", g2.edges)
-    # print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
-    # print(g2['user'].nodes, g2['item'])
 
     print("For g1 ......")
     g1.send_and_recv(g1.edges(),
@@ -124,7 +111,7 @@ def gen_bipartite():
 
     print("For g2 ......")
     g2.send_and_recv(g2.edges(),
-                     msg_func2, fn.sum("m", "accum"), apply_node_func)
+                     msg_func, fn.sum("m", "accum"), apply_node_func)
     #g2.update_all(msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g2["user"]', g2["user"].ndata.pop('res'))
     print('g2["item"]', g2["item"].ndata.pop('res'))
