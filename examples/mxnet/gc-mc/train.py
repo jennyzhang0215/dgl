@@ -18,20 +18,20 @@ def load_dataset(args):
     # !IMPORTANT. We need to check that ids in all_graph are continuous from 0 to #Node - 1.
     # We will later use these ids to take the embedding vectors
     feature_dict = dict()
-    nd_user_indices = mx.nd.arange(dataset.num_user, ctx=args.ctx)
-    nd_item_indices = mx.nd.arange(dataset.num_movie, ctx=args.ctx)
     if args.use_one_hot_fea:
-        feature_dict["user"] = mx.nd.one_hot(nd_user_indices, dataset.num_user)
-        feature_dict["movie"] = mx.nd.one_hot(nd_item_indices, dataset.num_movie)
+        nd_user_indices = mx.nd.arange(dataset.num_user, ctx=args.ctx)
+        nd_item_indices = mx.nd.arange(dataset.num_movie, ctx=args.ctx)
+        feature_dict[dataset.name_user] = mx.nd.one_hot(nd_user_indices, dataset.num_user)
+        feature_dict[dataset.name_movie] = mx.nd.one_hot(nd_item_indices, dataset.num_movie)
     else:
-        feature_dict["user"] = dataset.user_features
-        feature_dict["movie"] = dataset.movie_features
+        feature_dict[dataset.name_user] = dataset.user_features
+        feature_dict[dataset.name_movie] = dataset.movie_features
     # feature_dict["user"] = mx.nd.random.uniform(-1, 1, shape=(dataset.user_features.shape[0], 100))
     # feature_dict["movie"] = mx.nd.random.uniform(-1, 1, shape=(dataset.movie_features.shape[0], 10))
 
     info_line = "Feature dim: "
-    info_line += "\nUser: {}".format(feature_dict["user"].shape)
-    info_line += "\nMovie: {}".format(feature_dict["movie"].shape)
+    info_line += "\n{}: {}".format(dataset.name_user, feature_dict[dataset.name_user].shape)
+    info_line += "\n{}: {}".format(dataset.name_movie, feature_dict[dataset.name_movie].shape)
     print(info_line)
 
     return dataset, feature_dict
@@ -120,12 +120,10 @@ def train(args):
     train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
-    uv_train_graph = dataset.uv_train_graph
-    vu_train_graph = dataset.vu_train_graph
-    user_input = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+    train_graph = dataset.train_graph
+    user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
-    #assert feature_dict["user"].shape[1] == feature_dict["movie"].shape[1]
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
