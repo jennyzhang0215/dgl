@@ -131,7 +131,7 @@ class GCMCLayer(Block):
         self._dst_key = dst_key
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate)
-            self.user_aggregators = MultiLinkGCNAggregator(src_key=src_key,
+            self.user_aggregator = MultiLinkGCNAggregator(src_key=src_key,
                                                                     dst_key=dst_key,
                                                                     units = agg_units,
                                                                     in_units=src_in_units,
@@ -139,8 +139,8 @@ class GCMCLayer(Block):
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
                                                                     act=agg_act,
-                                                                    prefix='user_')
-            self.item_aggregators = MultiLinkGCNAggregator(src_key=dst_key,
+                                                                    prefix='user_agg_')
+            self.item_aggregator = MultiLinkGCNAggregator(src_key=dst_key,
                                                                     dst_key=src_key,
                                                                     in_units=dst_in_units,
                                                                     units=agg_units,
@@ -148,14 +148,14 @@ class GCMCLayer(Block):
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
                                                                     act=agg_act,
-                                                                    prefix='item_')
-            self.user_out_fcs = nn.Dense(out_units, flatten=False, prefix='user_')
-            self.item_out_fcs = nn.Dense(out_units, flatten=False, prefix='item_')
+                                                                    prefix='item_agg_')
+            self.user_out_fcs = nn.Dense(out_units, flatten=False, prefix='user_out_')
+            self.item_out_fcs = nn.Dense(out_units, flatten=False, prefix='item_out_')
             self._out_act = get_activation(out_act)
 
     def forward(self, uv_graph, vu_graph, user_fea, movie_fea):
-        movie_h = self.user_aggregators(uv_graph, user_fea, movie_fea)
-        user_h = self.item_aggregators(vu_graph, movie_fea, user_fea)
+        movie_h = self.user_aggregator(uv_graph, user_fea, movie_fea)
+        user_h = self.item_aggregator(vu_graph, movie_fea, user_fea)
         out_user = self._out_act(self.user_out_fcs(user_h))
         out_movie = self._out_act(self.item_out_fcs(movie_h))
         return out_user, out_movie
