@@ -110,6 +110,7 @@ def gen_bipartite():
 
     print("g1.edges", g1.edges)
     print("g2.edges", g2.edges)
+    print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
 
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
