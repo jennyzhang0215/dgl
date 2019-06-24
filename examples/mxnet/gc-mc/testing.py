@@ -104,13 +104,14 @@ def gen_bipartite():
     # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
     # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
     g1 = g['user', 'item', 'rating']
-    g2 = g['item', 'user', 'rating']
+    g2 = g['item', 'user', 'rated']
     g2['user'].ndata['h'] = mx.nd.ones((g2['user'].number_of_nodes(), g2['user'].number_of_nodes()), ctx=ctx)
     g2['item'].ndata['h'] = mx.nd.ones((g2['item'].number_of_nodes(), g2['item'].number_of_nodes()), ctx=ctx)
 
     print("g1.edges", g1.edges)
     print("g2.edges", g2.edges)
     print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
+    print(g2['user'].nodes, g2['item'].nodes)
 
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
