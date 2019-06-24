@@ -21,10 +21,9 @@ _word_embedding = nlp.embedding.GloVe('glove.840B.300d')
 _tokenizer = nlp.data.transforms.SpacyTokenizer()
 
 class MovieLens(object):
-    def __init__(self, name, ctx, symm=True,
+    def __init__(self, name, symm=True,
                  test_ratio=0.1, valid_ratio = 0.1):
         self._name = name
-        self._ctx = ctx
         self._symm = symm
         self._test_ratio = test_ratio
         self._valid_ratio = valid_ratio
@@ -88,8 +87,10 @@ class MovieLens(object):
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
 
     def _generate_pair_value(self, rating_info):
-        rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]], dtype=np.int64),
-                        np.array([self.global_movie_id_map[ele] for ele in rating_info["movie_id"]], dtype=np.int64))
+        rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
+                                 dtype=np.int64),
+                        np.array([self.global_movie_id_map[ele] for ele in rating_info["movie_id"]],
+                                 dtype=np.int64))
         rating_values = rating_info["rating"].values.astype(np.float32)
         return rating_pairs, rating_values
 
@@ -101,7 +102,7 @@ class MovieLens(object):
 
         user_movie_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
         user_movie_R[rating_pairs] = rating_values
-        movie_user_R = user_movie_R.transpose()
+        # movie_user_R = user_movie_R.transpose()
 
         graph = dgl.DGLBipartiteGraph(
             metagraph=nx.MultiGraph([('user', 'movie', 'rating'), ('movie', 'user', 'rating')]),
@@ -407,6 +408,7 @@ class MovieLens(object):
 
 
 if __name__ == '__main__':
-    MovieLens("ml-100k")
+    data = MovieLens("ml-100k")
+    data.train_graph
     # MovieLens("ml-1m")
     # MovieLens("ml-10m")
