@@ -61,9 +61,9 @@ class Net(Block):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def forward(self, uv_graph, vu_graph, user_fea, movie_fea, rating_node_pairs):
+    def forward(self, graph, user_fea, movie_fea, rating_node_pairs):
         # start = time.time()
-        user_out, movie_out = self.encoder(uv_graph, vu_graph, user_fea, movie_fea)
+        user_out, movie_out = self.encoder(graph, user_fea, movie_fea)
         #print("The time for encoder is: {:.1f}s".format(time.time()-start))
         # Generate the predicted ratings
         #start = time.time()
@@ -97,7 +97,7 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     rating_values = mx.nd.array(rating_values, ctx=args.ctx, dtype=np.float32)
 
     # Evaluate RMSE
-    pred_ratings = net(dataset.uv_train_graph, dataset.vu_train_graph, user_input, movie_input, rating_pairs)
+    pred_ratings = net(dataset.train_graph, user_input, movie_input, rating_pairs)
     if args.gen_r_use_classification:
         real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                              nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
@@ -166,7 +166,7 @@ def train(args):
             train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
-            pred_ratings = net(uv_train_graph, vu_train_graph, user_input, movie_input, train_rating_pairs)
+            pred_ratings = net(train_graph, user_input, movie_input, train_rating_pairs)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:

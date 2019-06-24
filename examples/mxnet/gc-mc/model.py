@@ -41,7 +41,7 @@ class LayerDictionary(Block):
 
 
 class MultiLinkGCNAggregator(Block):
-    def __init__(self, src_key, dst_key, units, in_units, num_links,
+    def __init__(self, src_key, dst_key, units, src_in_units, dst_in_units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
         super(MultiLinkGCNAggregator, self).__init__(**kwargs)
         self._src_key = src_key
@@ -69,10 +69,14 @@ class MultiLinkGCNAggregator(Block):
                 #                                  dtype=np.float32,
                 #                                  init='zeros',
                 #                                  allow_deferred_init=True))
-            self.weights = self.params.get('weight',
-                                           shape=(num_links, self._units, in_units),
+            self.src_dst_weights = self.params.get('src_dst_weight',
+                                           shape=(num_links, self._units, src_in_units),
                                            dtype=np.float32,
                                            allow_deferred_init=True)
+            self.dst_src_weights = self.params.get('dst_dst_weight',
+                                                   shape=(num_links, self._units, dst_in_units),
+                                                   dtype=np.float32,
+                                                   allow_deferred_init=True)
             # self.biases = self.params.get('bias',
             #                               shape=(num_links, units, ),
             #                               dtype=np.float32,
@@ -87,12 +91,12 @@ class MultiLinkGCNAggregator(Block):
         g[self._src_key].ndata['fea'] = src_input
         g[self._dst_key].ndata['fea'] = dst_input
 
-        def message_func(edges):
+        def src_dst_msg_func(edges):
             #print("\n\n In the message function ...")
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
-                w = self.weights.data()[i]
+                w = self.src_dst_weights.data()[i]
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                                * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
@@ -102,23 +106,43 @@ class MultiLinkGCNAggregator(Block):
                 mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
             else:
                 raise NotImplementedError
-            assert isinstance(mess_func, dict)
-
             return mess_func
+
+        def dst_src_msg_func(edges):
+            # print("\n\n In the message function ...")
+            msgs = []
+            for i in range(self._num_links):
+                # w = kwargs['weight{}'.format(i)]
+                w = self.dst_src_weights.data()[i]
+                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+                            * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
+            if self._accum == "sum":
+                mess_func = {'msg': mx.nd.add_n(*msgs)}
+
+            elif self._accum == "stack":
+                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
+            else:
+                raise NotImplementedError
+            return mess_func
+
 
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
 
-        g.send_and_recv(g.edges('uv', 'srcdst'),
-                        message_func,
-                        fn.sum('msg', 'accum'),
-                        apply_node_func)
+        g[self._src_key, self._dst_key, 'rating'].update_all(src_dst_msg_func,
+                                                             fn.sum('msg', 'accum'),
+                                                             apply_node_func)
+        g[self._dst_key, self._src_key, 'rating'].update_all(dst_src_msg_func,
+                                                             fn.sum('msg', 'accum'),
+                                                             apply_node_func)
         # g.register_message_func(message_func)
         # g[self._dst_key].register_reduce_func(fn.sum('msg', 'accum'))
         # g[self._dst_key].register_apply_node_func(apply_node_func)
         # g.send_and_recv()
-        h = g[self._dst_key].ndata.pop('h')
-        return h
+        src_h = g[self._src_key].ndata.pop('h')
+        dst_h = g[self._dst_key].ndata.pop('h')
+
+        return src_h, dst_h
 
 class GCMCLayer(Block):
     def __init__(self, src_key, dst_key, src_in_units, dst_in_units, agg_units, out_units, num_links,
@@ -131,34 +155,25 @@ class GCMCLayer(Block):
         self._dst_key = dst_key
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate)
-            self.user_aggregator = MultiLinkGCNAggregator(src_key=src_key,
-                                                                    dst_key=dst_key,
-                                                                    units = agg_units,
-                                                                    in_units=src_in_units,
-                                                                    num_links=num_links,
-                                                                    dropout_rate=dropout_rate,
-                                                                    accum=agg_accum,
-                                                                    act=agg_act,
-                                                                    prefix='user_agg_')
-            self.item_aggregator = MultiLinkGCNAggregator(src_key=dst_key,
-                                                                    dst_key=src_key,
-                                                                    in_units=dst_in_units,
-                                                                    units=agg_units,
-                                                                    num_links=num_links,
-                                                                    dropout_rate=dropout_rate,
-                                                                    accum=agg_accum,
-                                                                    act=agg_act,
-                                                                    prefix='item_agg_')
+            self.aggregator = MultiLinkGCNAggregator(src_key=src_key,
+                                                          dst_key=dst_key,
+                                                          units = agg_units,
+                                                          src_in_units=src_in_units,
+                                                          dst_in_units=dst_in_units,
+                                                          num_links=num_links,
+                                                          dropout_rate=dropout_rate,
+                                                          accum=agg_accum,
+                                                          act=agg_act,
+                                                          prefix='agg_')
             self.user_out_fcs = nn.Dense(out_units, flatten=False, prefix='user_out_')
             self.item_out_fcs = nn.Dense(out_units, flatten=False, prefix='item_out_')
             self._out_act = get_activation(out_act)
 
-    def forward(self, uv_graph, vu_graph, user_fea, movie_fea):
-        movie_h = self.user_aggregator(uv_graph, user_fea, movie_fea)
-        user_h = self.item_aggregator(vu_graph, movie_fea, user_fea)
+    def forward(self, graph, user_fea, item_fea):
+        user_h, item_h = self.aggregator(graph, user_fea, item_fea)
         out_user = self._out_act(self.user_out_fcs(user_h))
-        out_movie = self._out_act(self.item_out_fcs(movie_h))
-        return out_user, out_movie
+        out_item = self._out_act(self.item_out_fcs(item_h))
+        return out_user, out_item
 
 
 class BiDecoder(HybridBlock):
