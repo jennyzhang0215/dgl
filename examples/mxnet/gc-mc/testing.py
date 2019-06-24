@@ -114,9 +114,9 @@ def gen_bipartite():
     print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
     print(g2['user'].nodes, g2['item'])
 
-    # g2.send_and_recv(g2.edges(),
-    #                  msg_func, fn.sum("m", "accum"), apply_node_func)
-    g2.update_all(msg_func, fn.sum("m", "accum"), apply_node_func)
+    g2.send_and_recv(g2.edges(),
+                     msg_func, fn.sum("m", "accum"), apply_node_func)
+    #g2.update_all(msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g2["item"]', g2["item"].ndata.pop('res'))
     print('g2["user"]', g2["user"].ndata.pop('res'))
 
