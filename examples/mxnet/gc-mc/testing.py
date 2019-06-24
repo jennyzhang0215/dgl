@@ -109,13 +109,13 @@ def gen_bipartite():
     g.send_and_recv((g['user', 'item', 'rating'].edges('all', 'srcdst')[0],
                      g['user', 'item', 'rating'].edges('all', 'srcdst')[1]),
                     {('user', 'item', 'rating'): msg_func},
-                    {'user': reduce_func},
-                    {'user': apply_node_func})
+                    {'item': reduce_func},
+                    {'item': apply_node_func})
 
     g.send_and_recv(g['item', 'user', 'rating'].edges('all', 'srcdst')[0:2],
                     {('item', 'user', 'rating'): msg_func},
-                    {'item': reduce_func},
-                    {'item': apply_node_func})
+                    {'user': reduce_func},
+                    {'user': apply_node_func})
     print(g["user"].ndata["res"])
     print(g["item"].ndata["res"])
 
