@@ -105,6 +105,9 @@ def gen_bipartite():
     # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
+    g2['user'].ndata['h'] = mx.nd.ones((g2['user'].number_of_nodes(), g2['user'].number_of_nodes()), ctx=ctx)
+    g2['item'].ndata['h'] = mx.nd.ones((g2['item'].number_of_nodes(), g2['item'].number_of_nodes()), ctx=ctx)
+
     print("g1.edges", g1.edges)
     print("g2.edges", g2.edges)
 
