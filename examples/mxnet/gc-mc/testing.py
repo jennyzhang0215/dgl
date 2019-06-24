@@ -93,17 +93,18 @@ def gen_bipartite():
     g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()))
 
     def msg_func(edges):
+        # print("edges.src['h']", edges.src['h'])
         return {'m': edges.src['h']}
 
     def reduce_func(nodes):
-        print("nodes.mailbox['m']", nodes.mailbox['m'])
+        # print("nodes.mailbox['m']", nodes.mailbox['m'])
         return {'accum': mx.nd.sum(nodes.mailbox['m'], 1)}
 
     def apply_node_func(nodes):
         return {'res': nodes.data['accum']}
 
-    print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
-    print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
+    # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
+    # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
 
     g.send_and_recv((g['user', 'item', 'rating'].edges('all', 'srcdst')[0],
                      g['user', 'item', 'rating'].edges('all', 'srcdst')[1]),
