@@ -63,8 +63,6 @@ class MovieLens(object):
                                              label="movie")
 
         # Map user/movie to the global id
-        print("  -----------------")
-        print("Generating user id map and movie id map ...")
         self.global_user_id_map = {ele: i for i, ele in enumerate(self.user_info['id'])}
         self.global_movie_id_map = {ele: i for i, ele in enumerate(self.movie_info['id'])}
         print('Total user number = {}, movie number = {}'.format(len(self.global_user_id_map),
@@ -157,17 +155,17 @@ class MovieLens(object):
 
 
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
-        print("  -----------------")
-        print("{}: {}(reserved) v.s. {}(from info)".format(label, len(reserved_ids_set),
-                                                             len(set(orign_info[cmp_col_name].values))))
+        # print("  -----------------")
+        # print("{}: {}(reserved) v.s. {}(from info)".format(label, len(reserved_ids_set),
+        #                                                      len(set(orign_info[cmp_col_name].values))))
         if reserved_ids_set != set(orign_info[cmp_col_name].values):
             pd_rating_ids = pd.DataFrame(list(reserved_ids_set), columns=["id_graph"])
-            print("\torign_info: ({}, {})".format(orign_info.shape[0], orign_info.shape[1]))
+            # print("\torign_info: ({}, {})".format(orign_info.shape[0], orign_info.shape[1]))
             data_info = orign_info.merge(pd_rating_ids, left_on=cmp_col_name, right_on='id_graph', how='outer')
             data_info = data_info.dropna(subset=[cmp_col_name, 'id_graph'])
             data_info = data_info.drop(columns=["id_graph"])
             data_info = data_info.reset_index(drop=True)
-            print("\tAfter dropping, data shape: ({}, {})".format(data_info.shape[0], data_info.shape[1]))
+            # print("\tAfter dropping, data shape: ({}, {})".format(data_info.shape[0], data_info.shape[1]))
             return data_info
         else:
             orign_info = orign_info.reset_index(drop=True)
