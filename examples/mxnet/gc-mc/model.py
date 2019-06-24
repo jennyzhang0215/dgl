@@ -66,7 +66,7 @@ class MultiLinkGCNAggregator(Block):
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
-                w = self.dst_src_weights.data()[i]
+                w = self.src_dst_weights.data()[i]
                 print("edges.src['fea']", edges.src['fea'])
                 print("w", w)
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
@@ -86,7 +86,7 @@ class MultiLinkGCNAggregator(Block):
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
-                w = self.src_dst_weights.data()[i]
+                w = self.dst_src_weights.data()[i]
                 print("edges.src['fea']", edges.src['fea'])
                 print("w", w)
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
