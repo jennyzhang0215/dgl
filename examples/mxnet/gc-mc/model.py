@@ -73,7 +73,6 @@ class MultiLinkGCNAggregator(Block):
                                * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
-
             elif self._accum == "stack":
                 mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
             else:
@@ -93,7 +92,6 @@ class MultiLinkGCNAggregator(Block):
                             * mx.nd.dot(edges.dst['fea'], w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
-
             elif self._accum == "stack":
                 mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
             else:
@@ -107,7 +105,7 @@ class MultiLinkGCNAggregator(Block):
         g[self._src_key, self._dst_key, 'rating'].update_all(src_dst_msg_func,
                                                              fn.sum('msg', 'accum'),
                                                              apply_node_func)
-        g[self._dst_key, self._src_key, 'rating'].update_all(dst_src_msg_func,
+        g[self._src_key, self._dst_key, 'rating'].update_all(dst_src_msg_func,
                                                              fn.sum('msg', 'accum'),
                                                              apply_node_func)
         # g.register_message_func(message_func)
