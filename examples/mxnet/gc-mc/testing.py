@@ -75,11 +75,11 @@ def gen_bipartite():
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
     user_item_ratings = np.array([1,2,4,3,5,1,4,2,5])
     g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating'),
-                                                         ('item', 'user', 'rated')]),
+                                                         ('item', 'user', 'rating')]),
                               number_of_nodes_by_type = {'user': n_user, 'item': n_item},
                               edge_connections_by_type = {('user', 'item', 'rating'): (user_item_pair[0, :],
                                                                                        user_item_pair[1, :]),
-                                                          ('item', 'user', 'rated'): (user_item_pair[1, :],
+                                                          ('item', 'user', 'rating'): (user_item_pair[1, :],
                                                                                        user_item_pair[0, :])},
                               readonly = True)
     g['user', 'item', 'rating'].edata["R"] = user_item_ratings
@@ -88,13 +88,14 @@ def gen_bipartite():
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
-    print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rated'].number_of_edges()))
+    print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
 
     g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)
     g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)
 
     def msg_func(edges):
         # print("edges.src['h']", edges.src['h'])
+        print("edges.src['h']", edges.src['h'])
         return {'m': edges.src['h']}
 
 
@@ -104,14 +105,14 @@ def gen_bipartite():
     # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
     # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
     g1 = g['user', 'item', 'rating']
-    g2 = g['item', 'user', 'rated']
+    g2 = g['item', 'user', 'rating']
     g2['user'].ndata['h'] = mx.nd.ones((g2['user'].number_of_nodes(), g2['user'].number_of_nodes()), ctx=ctx)
     g2['item'].ndata['h'] = mx.nd.ones((g2['item'].number_of_nodes(), g2['item'].number_of_nodes()), ctx=ctx)
 
     print("g1.edges", g1.edges)
     print("g2.edges", g2.edges)
     print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
-    print(g2['user'].nodes, g2['item'].nodes)
+    print(g2['user'].nodes, g2['item'])
 
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
