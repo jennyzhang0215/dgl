@@ -91,7 +91,7 @@ class MultiLinkGCNAggregator(Block):
                 print("edges.dst['fea']", edges.dst['fea'])
                 print("w", w, "\n\n")
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * mx.nd.dot(edges.dst['fea'], w, transpose_b=True))
+                            * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
@@ -100,16 +100,17 @@ class MultiLinkGCNAggregator(Block):
                 raise NotImplementedError
             return mess_func
 
-
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
 
-        g[self._src_key, self._dst_key, 'rating'].update_all(src_dst_msg_func,
-                                                             fn.sum('msg', 'accum'),
-                                                             apply_node_func)
-        g[self._src_key, self._dst_key, 'rating'].update_all(dst_src_msg_func,
-                                                             fn.sum('msg', 'accum'),
-                                                             apply_node_func)
+        g.send_and_recv(g[self._src_key, self._dst_key, 'rating'].edges(),
+                        src_dst_msg_func,
+                        fn.sum('msg', 'accum'),
+                        apply_node_func)
+        g.send_and_recv(g[self._dst_key, self._src_key, 'rating'].edges(),
+                        dst_src_msg_func,
+                        fn.sum('msg', 'accum'),
+                        apply_node_func)
         # g.register_message_func(message_func)
         # g[self._dst_key].register_reduce_func(fn.sum('msg', 'accum'))
         # g[self._dst_key].register_apply_node_func(apply_node_func)
