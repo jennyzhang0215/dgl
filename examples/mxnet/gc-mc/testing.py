@@ -73,41 +73,67 @@ def gen_bipartite():
     user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
                                [0, 1, 3, 2, 4, 0, 3, 1, 4]])
     user_item_ratings = np.array([1,2,4,3,5,1,4,2,5])
-    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating')]),
+    g = dgl.DGLBipartiteGraph(metagraph = nx.MultiGraph([('user', 'item', 'rating'),
+                                                         ('item', 'user', 'rating')]),
                               number_of_nodes_by_type = {'user': n_user, 'item': n_item},
                               edge_connections_by_type = {('user', 'item', 'rating'): (user_item_pair[0, :],
-                                                                                       user_item_pair[1, :])},
+                                                                                       user_item_pair[1, :]),
+                                                          ('item', 'user', 'rating'): (user_item_pair[1, :],
+                                                                                       user_item_pair[0, :])},
                               readonly = True)
-    g.edata["rating"] = user_item_ratings
+    g['user', 'item', 'rating'].edata["R"] = user_item_ratings
+    g['item', 'user', 'rating'].edata["R"] = user_item_ratings
+
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     print("#ratings: {}".format(g.number_of_edges()))
+    print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
+    print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
 
-    g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
-    print("g.adj", g_adj)
+    g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()))
+    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()))
 
-    g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
-    print("g.g_adj_scipy", g_adj_scipy.todense())
+    def msg_func(edges):
+        return {'m': edges.src['h']}
+
+    def reduce_func(nodes):
+        print("nodes.mailbox['m']", nodes.mailbox['m'])
+        return {'accum': mx.nd.sum(nodes.mailbox['m'], 1)}
+
+    g.send_and_recv(g['user', 'item', 'rating'].edges(),
+                    {('user', 'item', 'rating'): msg_func},
+                    {'item': reduce_func})
+
+    g.send_and_recv(g['item', 'user', 'rating'].edges(),
+                    {('item', 'user', 'rating'): msg_func},
+                    {'user': reduce_func})
+    print(g["user"].ndata["accum"])
+    print(g["item"].ndata["accum"])
+
+    # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
+    # print("g.adj", g_adj)
+    #
+    # g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
+    # print("g.g_adj_scipy", g_adj_scipy.todense())
 
 
 
-    support_l = compute_support(user_item_R, num_link, sym)
-    for idx, support in enumerate(support_l):
-        sup_coo = support.tocoo()
-        print("sup_coo.row", sup_coo.row)
-        print("sup_coo.col", sup_coo.col)
-        print("sup_coo.data", sup_coo.data)
-        g.edges[np.array(sup_coo.row, dtype=np.int64),
-                np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-            mx.nd.array(sup_coo.data, ctx=ctx)
-
+    # support_l = compute_support(user_item_R, num_link, sym)
+    # for idx, support in enumerate(support_l):
+    #     sup_coo = support.tocoo()
+    #     print("sup_coo.row", sup_coo.row)
+    #     print("sup_coo.col", sup_coo.col)
+    #     print("sup_coo.data", sup_coo.data)
+    #     g.edges[np.array(sup_coo.row, dtype=np.int64),
+    #             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+    #         mx.nd.array(sup_coo.data, ctx=ctx)
+    #
 
 
     # print("g.edges('all', 'eid')", g.edges('all', 'eid'))
     # print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
     # print("g.edges('uv', 'eid')", g.edges('uv', 'eid'))
     # print("g.edges('uv', 'srcdst')", g.edges('uv', 'srcdst'))
-    print("g.edata", g.edata)
 
 
     return g
