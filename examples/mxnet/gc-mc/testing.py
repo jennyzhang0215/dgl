@@ -100,7 +100,7 @@ def gen_bipartite():
 
     def msg_func2(edges):
         # print("edges.src['h']", edges.src['h'])
-        print("edges.dst['h']", edges.src['h'])
+        print("edges.dst['h']", edges.dst['h'])
         return {'m': edges.dst['h']}
 
     def apply_node_func(nodes):
