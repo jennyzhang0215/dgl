@@ -6,40 +6,6 @@ from utils import get_activation
 import mxnet as mx
 import dgl.function as fn
 
-class LayerDictionary(Block):
-    def __init__(self, **kwargs):
-        """
-
-        Parameters
-        ----------
-        input_dims : dict
-        output_dims : dict
-        """
-        super(LayerDictionary, self).__init__(**kwargs)
-        self._key2idx = dict()
-        with self.name_scope():
-            self._layers = nn.Sequential()
-        self._nlayers = 0
-
-    def __len__(self):
-        return len(self._layers)
-
-    def __setitem__(self, key, layer):
-        if key in self._key2idx:
-            warnings.warn('Duplicate Key. Need to test the code!')
-            self._layers[self._key2idx[key]] = layer
-        else:
-            self._layers.add(layer)
-            self._key2idx[key] = self._nlayers
-            self._nlayers += 1
-
-    def __getitem__(self, key):
-        return self._layers[self._key2idx[key]]
-
-    def __contains__(self, key):
-        return key in self._key2idx
-
-
 class MultiLinkGCNAggregator(Block):
     def __init__(self, src_key, dst_key, units, src_in_units, dst_in_units, num_links,
                  dropout_rate=0.0, accum='stack', act=None, **kwargs):
@@ -88,6 +54,9 @@ class MultiLinkGCNAggregator(Block):
         dst_input = self.dropout(dst_input)
         #print("self._src_key", self._src_key)
         #print("self._dst_key", self._dst_key)
+        print("src_input", src_input)
+        print("dst_input", dst_input)
+        
         g[self._src_key].ndata['fea'] = src_input
         g[self._dst_key].ndata['fea'] = dst_input
 
@@ -156,15 +125,15 @@ class GCMCLayer(Block):
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate)
             self.aggregator = MultiLinkGCNAggregator(src_key=src_key,
-                                                          dst_key=dst_key,
-                                                          units = agg_units,
-                                                          src_in_units=src_in_units,
-                                                          dst_in_units=dst_in_units,
-                                                          num_links=num_links,
-                                                          dropout_rate=dropout_rate,
-                                                          accum=agg_accum,
-                                                          act=agg_act,
-                                                          prefix='agg_')
+                                                     dst_key=dst_key,
+                                                     units = agg_units,
+                                                     src_in_units=src_in_units,
+                                                     dst_in_units=dst_in_units,
+                                                     num_links=num_links,
+                                                     dropout_rate=dropout_rate,
+                                                     accum=agg_accum,
+                                                     act=agg_act,
+                                                     prefix='agg_')
             self.user_out_fcs = nn.Dense(out_units, flatten=False, prefix='user_out_')
             self.item_out_fcs = nn.Dense(out_units, flatten=False, prefix='item_out_')
             self._out_act = get_activation(out_act)

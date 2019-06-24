@@ -90,8 +90,8 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
         rating_values = dataset.test_rating_values
     else:
         raise NotImplementedError
-    user_input = mx.nd.array(feature_dict["user"], ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(feature_dict["movie"], ctx=args.ctx, dtype=np.float32)
+    user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(feature_dict[dataset.name_movie], ctx=args.ctx, dtype=np.float32)
 
     rating_pairs = mx.nd.array(rating_pairs, ctx=args.ctx, dtype=np.int64)
     rating_values = mx.nd.array(rating_values, ctx=args.ctx, dtype=np.float32)
@@ -127,8 +127,8 @@ def train(args):
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
-    args.src_in_units = feature_dict["user"].shape[1]
-    args.dst_in_units = feature_dict["movie"].shape[1]
+    args.src_in_units = feature_dict[dataset.name_movie].shape[1]
+    args.dst_in_units = feature_dict[dataset.name_user].shape[1]
     args.nratings = possible_rating_values.size
     print("args.nratings:", args.nratings)
     ### build the net
