@@ -118,7 +118,7 @@ class MovieLens(object):
         #     # node_frame={"user": self.user_features, "movie": self.movie_features},
         #     readonly=True)
 
-        # uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
+        uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
         # for idx, support in enumerate(uv_train_support_l):
         #     sup_coo = support.tocoo()
         #     uv_graph.edges[np.array(sup_coo.row, dtype=np.int64),
