@@ -108,17 +108,16 @@ def gen_bipartite():
     print("g1.edges", g1.edges)
     print("g2.edges", g2.edges)
 
+    g2.send_and_recv(g2.edges(),
+                     msg_func, fn.sum("m", "accum"), apply_node_func)
+    print(g2["user"].ndata.pop('res'))
+
+
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
     print(g1["item"].ndata.pop('res'))
 
-    g2.send_and_recv(g2.edges(),
-                     msg_func, fn.sum("m", "accum"), apply_node_func)
-    # g.send_and_recv(g['item', 'user', 'rating'].edges('all', 'srcdst')[0:2],
-    #                 {('item', 'user', 'rating'): msg_func},
-    #                 {'user': fn.sum("m", "accum")},
-    #                 {'user': apply_node_func})
-    print(g2["item"].ndata.pop('res'))
+
 
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
     # print("g.adj", g_adj)
