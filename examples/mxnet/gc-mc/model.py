@@ -84,8 +84,8 @@ class MultiLinkGCNAggregator(Block):
         dst_input = self.dropout(dst_input)
         #print("self._src_key", self._src_key)
         #print("self._dst_key", self._dst_key)
-        g[self._src_key].ndata['h'] = src_input
-        g[self._dst_key].ndata['h'] = dst_input
+        g[self._src_key].ndata['fea'] = src_input
+        g[self._dst_key].ndata['fea'] = dst_input
 
         def message_func(edges):
             #print("\n\n In the message function ...")
@@ -94,7 +94,7 @@ class MultiLinkGCNAggregator(Block):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.weights.data()[i]
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                               * mx.nd.dot(edges.src['h'], w, transpose_b=True))
+                               * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
 
@@ -108,7 +108,7 @@ class MultiLinkGCNAggregator(Block):
 
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
-        
+
         g.send_and_recv(g.edges('uv', 'srcdst'),
                         message_func,
                         fn.sum('msg', 'accum'),
