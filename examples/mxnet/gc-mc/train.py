@@ -122,13 +122,13 @@ def train(args):
     rating_std = dataset.train_rating_values.std()
     train_graph = dataset.train_graph
     user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
+    movie_input = mx.nd.array(feature_dict[dataset.name_movie], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
-    args.src_in_units = feature_dict[dataset.name_movie].shape[1]
-    args.dst_in_units = feature_dict[dataset.name_user].shape[1]
+    args.src_in_units = feature_dict[dataset.name_user].shape[1]
+    args.dst_in_units = feature_dict[dataset.name_movie].shape[1]
     args.nratings = possible_rating_values.size
     print("args.nratings:", args.nratings)
     ### build the net

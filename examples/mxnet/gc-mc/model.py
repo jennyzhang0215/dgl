@@ -56,7 +56,7 @@ class MultiLinkGCNAggregator(Block):
         #print("self._dst_key", self._dst_key)
         print("src_input", src_input)
         print("dst_input", dst_input)
-        
+
         g[self._src_key].ndata['fea'] = src_input
         g[self._dst_key].ndata['fea'] = dst_input
 
