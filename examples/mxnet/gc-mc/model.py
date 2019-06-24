@@ -104,13 +104,13 @@ class MultiLinkGCNAggregator(Block):
             return {'h': self.act(nodes.data['accum'])}
 
         g.send_and_recv(g[self._src_key, self._dst_key, 'rating'].edges(),
-                        src_dst_msg_func,
-                        fn.sum('msg', 'accum'),
-                        apply_node_func)
+                        {(self._src_key, self._dst_key, 'rating'): src_dst_msg_func},
+                        {self._dst_key: fn.sum('msg', 'accum')},
+                        {self._dst_key: apply_node_func})
         g.send_and_recv(g[self._dst_key, self._src_key, 'rating'].edges(),
-                        dst_src_msg_func,
-                        fn.sum('msg', 'accum'),
-                        apply_node_func)
+                        {(self._dst_key, self._src_key, 'rating'): dst_src_msg_func},
+                        {self._src_key: fn.sum('msg', 'accum')},
+                        {self._src_key: apply_node_func})
         # g.register_message_func(message_func)
         # g[self._dst_key].register_reduce_func(fn.sum('msg', 'accum'))
         # g[self._dst_key].register_apply_node_func(apply_node_func)
