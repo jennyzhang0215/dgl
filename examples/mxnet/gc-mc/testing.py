@@ -116,8 +116,8 @@ def gen_bipartite():
     #                 {('item', 'user', 'rating'): msg_func},
     #                 {'user': fn.sum("m", "accum")},
     #                 {'user': apply_node_func})
-    print(g["user"].ndata["res"])
-    print(g["item"].ndata["res"])
+    print(g["user"].ndata.pop('res'))
+    print(g["item"].ndata.pop('res'))
 
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
     # print("g.adj", g_adj)
