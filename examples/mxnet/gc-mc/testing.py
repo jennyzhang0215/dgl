@@ -6,6 +6,7 @@ import networkx as nx
 import dgl
 import sys
 import mxnet as mx
+import dgl.function as fn
 
 
 """
@@ -96,25 +97,23 @@ def gen_bipartite():
         # print("edges.src['h']", edges.src['h'])
         return {'m': edges.src['h']}
 
-    def reduce_func(nodes):
-        # print("nodes.mailbox['m']", nodes.mailbox['m'])
-        return {'accum': mx.nd.sum(nodes.mailbox['m'], 1)}
 
     def apply_node_func(nodes):
         return {'res': nodes.data['accum']}
 
     # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
     # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
+    g1 = g['user', 'item', 'rating']
+    g2 = g['item', 'user', 'rating']
+    print("g1.edges", g1.edges)
+    print("g2.edges", g2.edges)
 
-    g.send_and_recv((g['user', 'item', 'rating'].edges('all', 'srcdst')[0],
-                     g['user', 'item', 'rating'].edges('all', 'srcdst')[1]),
-                    {('user', 'item', 'rating'): msg_func},
-                    {'item': reduce_func},
-                    {'item': apply_node_func})
+    g1.send_and_recv(g1.edges(),
+                     msg_func, fn.sum("m", "accum"), apply_node_func)
 
     g.send_and_recv(g['item', 'user', 'rating'].edges('all', 'srcdst')[0:2],
                     {('item', 'user', 'rating'): msg_func},
-                    {'user': reduce_func},
+                    {'user': fn.sum("m", "accum")},
                     {'user': apply_node_func})
     print(g["user"].ndata["res"])
     print(g["item"].ndata["res"])
