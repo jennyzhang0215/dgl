@@ -240,7 +240,7 @@ def config():
     parser = argparse.ArgumentParser(description='Run the baseline method.')
 
     parser.add_argument('--seed', default=123, type=int)
-    parser.add_argument('--ctx', dest='ctx', default='cpu', type=str,
+    parser.add_argument('--ctx', dest='ctx', default='gpu0', type=str,
                         help='Running Context. E.g `--ctx gpu` or `--ctx gpu0,gpu1` or `--ctx cpu`')
     parser.add_argument('--save_dir', type=str, help='The saving directory')
     parser.add_argument('--save_id', type=int, help='The saving log id')
