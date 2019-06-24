@@ -103,37 +103,37 @@ class MovieLens(object):
         user_movie_R[rating_pairs] = rating_values
         movie_user_R = user_movie_R.transpose()
 
-        uv_graph = dgl.DGLBipartiteGraph(
-            metagraph=nx.MultiGraph([('user', 'movie', 'rating')]),
+        graph = dgl.DGLBipartiteGraph(
+            metagraph=nx.MultiGraph([('user', 'movie', 'rating'), ('movie', 'user', 'rating')]),
             number_of_nodes_by_type={'user': self._num_user,
                                      'movie': self._num_movie},
-            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo},
-            # node_frame={"user": self.user_features, "movie": self.movie_features},
+            edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
+                                      ('movie', 'user', 'rating'): movie_user_ratings_coo},
             readonly=True)
 
-        vu_graph = dgl.DGLBipartiteGraph(
-            metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
-            number_of_nodes_by_type={'user': self._num_user,
-                                     'movie': self._num_movie},
-            edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
-            # node_frame={"user": self.user_features, "movie": self.movie_features},
-            readonly=True)
+        # vu_graph = dgl.DGLBipartiteGraph(
+        #     metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
+        #     number_of_nodes_by_type={'user': self._num_user,
+        #                              'movie': self._num_movie},
+        #     edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
+        #     # node_frame={"user": self.user_features, "movie": self.movie_features},
+        #     readonly=True)
 
-        uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
-        for idx, support in enumerate(uv_train_support_l):
-            sup_coo = support.tocoo()
-            uv_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                           np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
+        # uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
+        # for idx, support in enumerate(uv_train_support_l):
+        #     sup_coo = support.tocoo()
+        #     uv_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+        #                    np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+        #         mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
+        #
+        # vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
+        # for idx, support in enumerate(vu_train_support_l):
+        #     sup_coo = support.tocoo()
+        #     vu_graph.edges[np.array(sup_coo.row, dtype=np.int64),
+        #                    np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+        #         mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
 
-        vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
-        for idx, support in enumerate(vu_train_support_l):
-            sup_coo = support.tocoo()
-            vu_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-                           np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
-
-        return uv_graph, vu_graph
+        return graph
 
     @property
     def possible_rating_values(self):
@@ -396,7 +396,10 @@ class MovieLens(object):
 
         else:
             support_l = [degree_u_inv.dot(adj) for adj in adj_unnormalized_l]
-
+        edges = 0
+        for sup in support_l:
+            edges += sp.coo_matrix(sup).nnz
+        print("edges from support: {}".format(edges))
         return support_l
 
 
