@@ -136,7 +136,7 @@ class GCMCLayer(Block):
                 self._aggregators[src_key] = MultiLinkGCNAggregator(src_key=src_key,
                                                                     dst_key=dst_key,
                                                                     units = agg_units,
-                                                                    in_units=dst_in_units,
+                                                                    in_units=src_in_units,
                                                                     num_links=num_links,
                                                                     dropout_rate=dropout_rate,
                                                                     accum=agg_accum,
@@ -144,7 +144,7 @@ class GCMCLayer(Block):
                                                                     prefix='{}_'.format(src_key))
                 self._aggregators[dst_key] = MultiLinkGCNAggregator(src_key=dst_key,
                                                                     dst_key=src_key,
-                                                                    in_units=src_in_units,
+                                                                    in_units=dst_in_units,
                                                                     units=agg_units,
                                                                     num_links=num_links,
                                                                     dropout_rate=dropout_rate,
