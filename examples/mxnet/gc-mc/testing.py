@@ -90,8 +90,8 @@ def gen_bipartite():
     print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
     print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
 
-    g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)
-    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx) * 2
+    g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
+    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)
 
     def msg_func(edges):
         # print("edges.src['h']", edges.src['h'])
@@ -114,12 +114,14 @@ def gen_bipartite():
     print("g2.edges('all', 'srcdst')", g2.edges('all', 'srcdst'))
     print(g2['user'].nodes, g2['item'])
 
+    print("For g2 ......")
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
     #g2.update_all(msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g2["item"]', g2["item"].ndata.pop('res'))
-    print('g2["user"]', g2["user"].ndata.pop('res'))
+    #print('g2["user"]', g2["user"].ndata.pop('res'))
 
+    print("For g1 ......")
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g1["item"]', g1["item"].ndata.pop('res'))
