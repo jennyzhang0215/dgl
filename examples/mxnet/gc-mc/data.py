@@ -84,7 +84,7 @@ class MovieLens(object):
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
-        self.uv_train_graph, self.vu_train_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
+        self.train_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
 
     def _generate_pair_value(self, rating_info):
