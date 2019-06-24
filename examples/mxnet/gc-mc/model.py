@@ -61,11 +61,14 @@ class MultiLinkGCNAggregator(Block):
         g[self._dst_key].ndata['fea'] = dst_input
 
         def src_dst_msg_func(edges):
+            print("In src_dst_msg_func() ......")
             #print("\n\n In the message function ...")
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.dst_src_weights.data()[i]
+                print("edges.src['fea']", edges.src['fea'])
+                print("w", w)
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                                * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
@@ -78,11 +81,14 @@ class MultiLinkGCNAggregator(Block):
             return mess_func
 
         def dst_src_msg_func(edges):
+            print("In dst_src_msg_func() ......")
             # print("\n\n In the message function ...")
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.src_dst_weights.data()[i]
+                print("edges.src['fea']", edges.src['fea'])
+                print("w", w)
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                             * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
             if self._accum == "sum":
