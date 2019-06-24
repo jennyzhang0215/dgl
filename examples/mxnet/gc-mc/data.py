@@ -406,8 +406,9 @@ class MovieLens(object):
 
 
 if __name__ == '__main__':
-    data = MovieLens("ml-100k", symm=True)
-    data = MovieLens("ml-100k", symm=False)
-
-    # MovieLens("ml-1m")
-    # MovieLens("ml-10m")
+    MovieLens("ml-100k", symm=True)
+    MovieLens("ml-100k", symm=False)
+    MovieLens("ml-1m", symm=True)
+    MovieLens("ml-1m", symm=False)
+    MovieLens("ml-10m", symm=True)
+    MovieLens("ml-10m", symm=False)
