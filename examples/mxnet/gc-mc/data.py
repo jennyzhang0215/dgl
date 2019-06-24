@@ -153,7 +153,6 @@ class MovieLens(object):
     def num_movie(self):
         return self._num_movie
 
-
     def _drop_unseen_nodes(self, orign_info, cmp_col_name, reserved_ids_set, label):
         # print("  -----------------")
         # print("{}: {}(reserved) v.s. {}(from info)".format(label, len(reserved_ids_set),
@@ -391,14 +390,15 @@ class MovieLens(object):
         degree_u_inv = degree_u_inv_sqrt_mat.dot(degree_u_inv_sqrt_mat)
 
         if symmetric:
-            support_l = [degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat) for adj in adj_unnormalized_l]
+            support_l = [sp.coo_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)) for adj in adj_unnormalized_l]
 
         else:
-            support_l = [degree_u_inv.dot(adj) for adj in adj_unnormalized_l]
-        edges = 0
+            support_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
+
+        num_edges = 0
         for sup in support_l:
-            edges += sp.coo_matrix(sup).nnz
-        print("edges from support: {}".format(edges))
+            num_edges += sup.nnz
+        print("edges from support: {}".format(num_edges))
         return support_l
 
 
@@ -406,7 +406,8 @@ class MovieLens(object):
 
 
 if __name__ == '__main__':
-    data = MovieLens("ml-100k")
-    data.train_graph
+    data = MovieLens("ml-100k", symm=True)
+    data = MovieLens("ml-100k", symm=False)
+
     # MovieLens("ml-1m")
     # MovieLens("ml-10m")
