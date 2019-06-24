@@ -109,7 +109,7 @@ def gen_bipartite():
     # print("g['user', 'item', 'rating'].edges('all', 'srcdst')", g['user', 'item', 'rating'].edges('all', 'srcdst'))
     # print("g['item', 'user', 'rating'].edges('all', 'srcdst')", g['item', 'user', 'rating'].edges('all', 'srcdst'))
     g1 = g['user', 'item', 'rating']
-    g2 = g['user', 'item', 'rating']
+    g2 = g['item', 'user', 'rating']
 
     # print("g1.edges", g1.edges)
     # print("g2.edges", g2.edges)
