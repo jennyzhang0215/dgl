@@ -82,14 +82,12 @@ def gen_bipartite():
                                                           ('item', 'user', 'rating'): (user_item_pair[1, :],
                                                                                        user_item_pair[0, :])},
                               readonly = True)
-    g['user', 'item', 'rating'].edata["R"] = user_item_ratings
-    g['item', 'user', 'rating'].edata["R"] = user_item_ratings
-
+    # g['user', 'item', 'rating'].edata["R"] = user_item_ratings
+    # g['item', 'user', 'rating'].edata["R"] = user_item_ratings
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
-    print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
-    print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
-
+    # print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
+    # print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
     g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
     g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx) * 3
 
@@ -102,13 +100,11 @@ def gen_bipartite():
 
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
-
     print("For g1 ......")
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g1["item"]', g1["item"].ndata.pop('res'))
     # print('g1["user"]', g1["user"].ndata.pop('res'))
-
     print("For g2 ......")
     g2.send_and_recv(g2.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
