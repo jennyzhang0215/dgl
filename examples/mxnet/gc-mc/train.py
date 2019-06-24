@@ -132,6 +132,7 @@ def train(args):
     args.src_in_units = feature_dict["user"].shape[1]
     args.dst_in_units = feature_dict["movie"].shape[1]
     args.nratings = possible_rating_values.size
+    print("args.nratings:", args.nratings)
     ### build the net
     net = Net(args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
