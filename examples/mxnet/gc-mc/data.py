@@ -21,9 +21,10 @@ _word_embedding = nlp.embedding.GloVe('glove.840B.300d')
 _tokenizer = nlp.data.transforms.SpacyTokenizer()
 
 class MovieLens(object):
-    def __init__(self, name, symm=True,
+    def __init__(self, name, ctx, symm=True,
                  test_ratio=0.1, valid_ratio = 0.1):
         self._name = name
+        self._ctx = ctx
         self._symm = symm
         self._test_ratio = test_ratio
         self._valid_ratio = valid_ratio
@@ -100,10 +101,11 @@ class MovieLens(object):
 
         user_movie_R = np.zeros((self._num_user, self._num_movie), dtype=np.float32)
         user_movie_R[rating_pairs] = rating_values
-        # movie_user_R = user_movie_R.transpose()
+        movie_user_R = user_movie_R.transpose()
 
         graph = dgl.DGLBipartiteGraph(
-            metagraph=nx.MultiGraph([('user', 'movie', 'rating'), ('movie', 'user', 'rating')]),
+            metagraph=nx.MultiGraph([('user', 'movie', 'rating'),
+                                     ('movie', 'user', 'rating')]),
             number_of_nodes_by_type={'user': self._num_user,
                                      'movie': self._num_movie},
             edge_connections_by_type={('user', 'movie', 'rating'): user_movie_ratings_coo,
@@ -119,18 +121,18 @@ class MovieLens(object):
         #     readonly=True)
 
         uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
-        # for idx, support in enumerate(uv_train_support_l):
-        #     sup_coo = support.tocoo()
-        #     uv_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-        #                    np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-        #         mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
-        #
-        # vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
-        # for idx, support in enumerate(vu_train_support_l):
-        #     sup_coo = support.tocoo()
-        #     vu_graph.edges[np.array(sup_coo.row, dtype=np.int64),
-        #                    np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-        #         mx.nd.array(sup_coo.data, ctx=self._ctx, dtype=np.float32)
+        for idx, sup in enumerate(uv_train_support_l):
+            graph['user', 'movie', 'rating'].edges[
+                np.array(sup.row, dtype=np.int64),
+                np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
+
+        vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
+        for idx, sup in enumerate(vu_train_support_l):
+            graph['movie', 'user', 'rating'].edges[
+                np.array(sup.row, dtype=np.int64),
+                np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
 
         return graph
 
@@ -390,25 +392,23 @@ class MovieLens(object):
         degree_u_inv = degree_u_inv_sqrt_mat.dot(degree_u_inv_sqrt_mat)
 
         if symmetric:
-            support_l = [sp.coo_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)) for adj in adj_unnormalized_l]
+            support_sp_l = [sp.coo_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)) for adj in adj_unnormalized_l]
 
         else:
-            support_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
+            support_sp_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
 
         num_edges = 0
-        for sup in support_l:
+        for sup in support_sp_l:
             num_edges += sup.nnz
         print("edges from support: {}".format(num_edges))
-        return support_l
+        return support_sp_l
 
 
 
 
 
 if __name__ == '__main__':
-    MovieLens("ml-100k", symm=True)
-    MovieLens("ml-100k", symm=False)
-    MovieLens("ml-1m", symm=True)
-    MovieLens("ml-1m", symm=False)
-    MovieLens("ml-10m", symm=True)
-    MovieLens("ml-10m", symm=False)
+    MovieLens("ml-100k", ctx=mx.gpu(0), symm=True)
+    MovieLens("ml-100k", ctx=mx.gpu(0), symm=False)
+    MovieLens("ml-1m", ctx=mx.gpu(0), symm=True)
+    MovieLens("ml-1m", ctx=mx.gpu(0), symm=False)
