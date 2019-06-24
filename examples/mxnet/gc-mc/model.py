@@ -90,7 +90,7 @@ class MultiLinkGCNAggregator(Block):
                 print("edges.src['fea']", edges.src['fea'])
                 print("w", w)
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
+                            * mx.nd.dot(edges.dst['fea'], w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
 
