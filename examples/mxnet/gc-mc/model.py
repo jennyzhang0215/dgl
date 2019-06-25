@@ -110,7 +110,7 @@ class MultiLinkGCNAggregator(Block):
         dst_src_g.send_and_recv(dst_src_g.edges(),
                                 dst_src_msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
-        
+
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')
         src_h = dst_src_g[self._dst_key].ndata.pop('h')
 
