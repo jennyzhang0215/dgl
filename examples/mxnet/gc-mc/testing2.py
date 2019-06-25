@@ -37,6 +37,8 @@ def gen_from_edgelist(directed):
                                   readonly=True)
     return g
 
+
+ctx = mx.cpu()
 g = gen_from_edgelist(False)
 src_g = g['src']
 dst_g = g['dst']
@@ -62,6 +64,10 @@ subg = g.edge_subgraph({('src', 'dst', 'e'): subg_eid,
 subg.copy_from_parent()
 print('subg.edges("all", "srcdst")', subg['src', 'dst', 'e'].edges("all", "srcdst"))
 print("subg['src', 'dst', 'e'].edata['eid']", subg['src', 'dst', 'e'].edata['eid'])
+
+subg['src'].ndata['fea'] = mx.nd.ones((subg['src'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
+subg['dst'].ndata['fea'] = mx.nd.ones((subg['dst'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
+
 
 assert_array_equal(np.unique(F.asnumpy(subg['src'].ndata['nid'])),
                    np.unique(F.asnumpy(subg_src)))

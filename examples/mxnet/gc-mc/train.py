@@ -119,7 +119,6 @@ def train(args):
     train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
-    train_graph = dataset.train_graph
     user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
     movie_input = mx.nd.array(feature_dict[dataset.name_movie], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
@@ -165,7 +164,7 @@ def train(args):
             train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
-            pred_ratings = net(train_graph, user_input, movie_input, train_rating_pairs)
+            pred_ratings = net(dataset.train_graph, user_input, movie_input, train_rating_pairs)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:
