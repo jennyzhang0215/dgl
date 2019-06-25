@@ -21,7 +21,7 @@ _word_embedding = nlp.embedding.GloVe('glove.840B.300d')
 _tokenizer = nlp.data.transforms.SpacyTokenizer()
 
 class MovieLens(object):
-    def __init__(self, name, ctx, symm=True,
+    def __init__(self, name, ctx, use_one_hot_fea=False, symm=True,
                  test_ratio=0.1, valid_ratio = 0.1):
         self._name = name
         self._ctx = ctx
@@ -72,10 +72,18 @@ class MovieLens(object):
         self._num_movie = len(self.global_movie_id_map)
 
         ### Generate features
-        self._process_user_fea()
-        self._process_movie_fea()
-        #print("user_features: shape ({},{})".format(self.user_features.shape[0], self.user_features.shape[1]))
-        #print("movie_features: shape ({},{})".format(self.movie_features.shape[0], self.movie_features.shape[1]))
+        if use_one_hot_fea:
+            nd_user_indices = mx.nd.arange(self.num_user, ctx=self._ctx)
+            nd_item_indices = mx.nd.arange(self.num_movie, ctx=self._ctx)
+            self.user_feature = mx.nd.one_hot(nd_user_indices, self.num_user)
+            self.movie_feature = mx.nd.one_hot(nd_item_indices, self.num_movie)
+        else:
+            self.user_feature = self._process_user_fea()
+            self.movie_feature = self._process_movie_fea()
+        info_line = "Feature dim: "
+        info_line += "\n{}: {}".format(self.name_user, self.user_feature.shape)
+        info_line += "\n{}: {}".format(self.name_movie, self.movie_feature.shape)
+        print(info_line)
 
         all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
         self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
@@ -83,6 +91,8 @@ class MovieLens(object):
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
+        self.test_graph[self.name_user].ndata['fea'] = self.user_feature
+        self.test_graph[self.name_movie].ndata['fea'] = self.movie_feature
 
         uv_test_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
         vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
@@ -102,6 +112,7 @@ class MovieLens(object):
             self.test_graph[self.name_user].number_of_nodes(),
             self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
+        print(self.train_graph[self.name_movie].ndata['fea'])
 
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
@@ -280,13 +291,14 @@ class MovieLens(object):
                                           dtype=np.float32)
             occupation_one_hot[np.arange(self.user_info.shape[0]),
                                np.array([occupation_map[ele] for ele in self.user_info['occupation']])] = 1
-            self.user_features = np.concatenate([ages.reshape((self.user_info.shape[0], 1)) / 50.0,
+            user_features = np.concatenate([ages.reshape((self.user_info.shape[0], 1)) / 50.0,
                                             gender.reshape((self.user_info.shape[0], 1)),
                                             occupation_one_hot], axis=1)
         elif self._name == 'ml-10m':
-            self.user_features = np.zeros(shape=(self.user_info.shape[0], 1), dtype=np.float32)
+            user_features = np.zeros(shape=(self.user_info.shape[0], 1), dtype=np.float32)
         else:
             raise NotImplementedError
+        return user_features
 
     def _load_raw_movie_info(self):
         """In MovieLens, the movie attributes may have the following formats:
@@ -383,10 +395,11 @@ class MovieLens(object):
             # We use average of glove
             title_embedding[i, :] =_word_embedding[_tokenizer(title_context)].asnumpy().mean(axis=0)
             release_years[i] = float(year)
-            self.movie_features = np.concatenate((title_embedding,
-                                                  (release_years - 1950.0) / 100.0,
-                                                  self.movie_info[GENRES]),
-                                                 axis=1)
+        movie_features = np.concatenate((title_embedding,
+                                         (release_years - 1950.0) / 100.0,
+                                         self.movie_info[GENRES]),
+                                        axis=1)
+        return movie_features
 
 
     def compute_support(self, adj, num_links, symmetric):

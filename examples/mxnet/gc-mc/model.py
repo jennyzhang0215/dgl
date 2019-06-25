@@ -49,18 +49,8 @@ class MultiLinkGCNAggregator(Block):
             #                               init='zeros',
             #                               allow_deferred_init=True)
 
-    def forward(self, g, src_input, dst_input):
-        src_input = self.dropout(src_input)
-        dst_input = self.dropout(dst_input)
-        #print("self._src_key", self._src_key)
-        #print("self._dst_key", self._dst_key)
-        print("src_input", src_input)
-        print("dst_input", dst_input)
-
-        g[self._src_key].ndata['fea'] = src_input
-        g[self._dst_key].ndata['fea'] = dst_input
-
-        def src_dst_msg_func(edges):
+    def forward(self, g):
+        def msg_func(edges):
             print("In src_dst_msg_func() ......\n\n\n\n\n")
             #print("\n\n In the message function ...")
             msgs = []
@@ -71,27 +61,7 @@ class MultiLinkGCNAggregator(Block):
                 print("edges.dst['fea']", edges.dst['fea'])
                 print("w", w, "\n\n")
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                               * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
-            if self._accum == "sum":
-                mess_func = {'msg': mx.nd.add_n(*msgs)}
-            elif self._accum == "stack":
-                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
-            else:
-                raise NotImplementedError
-            return mess_func
-
-        def dst_src_msg_func(edges):
-            print("In dst_src_msg_func() ......\n\n\n\n\n")
-            # print("\n\n In the message function ...")
-            msgs = []
-            for i in range(self._num_links):
-                # w = kwargs['weight{}'.format(i)]
-                w = self.dst_src_weights.data()[i]
-                print("edges.src['fea']", edges.src['fea'])
-                print("edges.dst['fea']", edges.dst['fea'])
-                print("w", w, "\n\n")
-                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * mx.nd.dot(edges.src['fea'], w, transpose_b=True))
+                               * mx.nd.dot(self.dropout(edges.src['fea']), w, transpose_b=True))
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
@@ -102,17 +72,18 @@ class MultiLinkGCNAggregator(Block):
 
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
+
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
         src_dst_g.send_and_recv(src_dst_g.edges,
-                                src_dst_msg_func, fn.sum('msg', 'accum'),
+                                msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
         dst_src_g.send_and_recv(dst_src_g.edges(),
-                                dst_src_msg_func, fn.sum('msg', 'accum'),
+                                msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
 
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')
-        src_h = dst_src_g[self._dst_key].ndata.pop('h')
+        src_h = dst_src_g[self._src_key].ndata.pop('h')
 
         return src_h, dst_h
 
@@ -141,8 +112,8 @@ class GCMCLayer(Block):
             self.item_out_fcs = nn.Dense(out_units, flatten=False, prefix='item_out_')
             self._out_act = get_activation(out_act)
 
-    def forward(self, graph, user_fea, item_fea):
-        user_h, item_h = self.aggregator(graph, user_fea, item_fea)
+    def forward(self, graph):
+        user_h, item_h = self.aggregator(graph)
         out_user = self._out_act(self.user_out_fcs(user_h))
         out_item = self._out_act(self.item_out_fcs(item_h))
         return out_user, out_item

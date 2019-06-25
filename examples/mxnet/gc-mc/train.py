@@ -13,28 +13,6 @@ from utils import get_activation, parse_ctx, gluon_net_info, gluon_total_param_n
 from mxnet.gluon import nn, HybridBlock, Block
 import time
 
-def load_dataset(args):
-    dataset = MovieLens(args.data_name, args.ctx, symm=args.gcn_agg_norm_symm)
-    # !IMPORTANT. We need to check that ids in all_graph are continuous from 0 to #Node - 1.
-    # We will later use these ids to take the embedding vectors
-    feature_dict = dict()
-    if args.use_one_hot_fea:
-        nd_user_indices = mx.nd.arange(dataset.num_user, ctx=args.ctx)
-        nd_item_indices = mx.nd.arange(dataset.num_movie, ctx=args.ctx)
-        feature_dict[dataset.name_user] = mx.nd.one_hot(nd_user_indices, dataset.num_user)
-        feature_dict[dataset.name_movie] = mx.nd.one_hot(nd_item_indices, dataset.num_movie)
-    else:
-        feature_dict[dataset.name_user] = dataset.user_features
-        feature_dict[dataset.name_movie] = dataset.movie_features
-    # feature_dict["user"] = mx.nd.random.uniform(-1, 1, shape=(dataset.user_features.shape[0], 100))
-    # feature_dict["movie"] = mx.nd.random.uniform(-1, 1, shape=(dataset.movie_features.shape[0], 10))
-
-    info_line = "Feature dim: "
-    info_line += "\n{}: {}".format(dataset.name_user, feature_dict[dataset.name_user].shape)
-    info_line += "\n{}: {}".format(dataset.name_movie, feature_dict[dataset.name_movie].shape)
-    print(info_line)
-
-    return dataset, feature_dict
 
 class Net(Block):
     def __init__(self, args, **kwargs):
@@ -61,9 +39,9 @@ class Net(Block):
                 self.gen_ratings = InnerProductLayer(prefix='gen_rating')
 
 
-    def forward(self, graph, user_fea, movie_fea, rating_node_pairs):
+    def forward(self, graph, rating_node_pairs):
         # start = time.time()
-        user_out, movie_out = self.encoder(graph, user_fea, movie_fea)
+        user_out, movie_out = self.encoder(graph)
         #print("The time for encoder is: {:.1f}s".format(time.time()-start))
         # Generate the predicted ratings
         #start = time.time()
@@ -75,7 +53,7 @@ class Net(Block):
 
 
 
-def evaluate(args, net, feature_dict, dataset, segment='valid'):
+def evaluate(args, net, dataset, segment='valid'):
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
     possible_rating_values = dataset.possible_rating_values
@@ -84,19 +62,19 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     if segment == "valid":
         rating_pairs = dataset.valid_rating_pairs
         rating_values = dataset.valid_rating_values
+        graph = dataset.train_graph
     elif segment == "test":
         rating_pairs = dataset.test_rating_pairs
         rating_values = dataset.test_rating_values
+        graph = dataset.test_graph
     else:
         raise NotImplementedError
-    user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(feature_dict[dataset.name_movie], ctx=args.ctx, dtype=np.float32)
 
     rating_pairs = mx.nd.array(rating_pairs, ctx=args.ctx, dtype=np.int64)
     rating_values = mx.nd.array(rating_values, ctx=args.ctx, dtype=np.float32)
 
     # Evaluate RMSE
-    pred_ratings = net(dataset.train_graph, user_input, movie_input, rating_pairs)
+    pred_ratings = net(graph, rating_pairs)
     if args.gen_r_use_classification:
         real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                              nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
@@ -109,7 +87,7 @@ def evaluate(args, net, feature_dict, dataset, segment='valid'):
     return rmse
 
 def train(args):
-    dataset, feature_dict = load_dataset(args)
+    dataset = MovieLens(args.data_name, args.ctx, symm=args.gcn_agg_norm_symm)
     print("Loading data finished ...\n")
 
     ### prepare data
@@ -119,13 +97,11 @@ def train(args):
     train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
-    user_input = mx.nd.array(feature_dict[dataset.name_user], ctx=args.ctx, dtype=np.float32)
-    movie_input = mx.nd.array(feature_dict[dataset.name_movie], ctx=args.ctx, dtype=np.float32)
     print("Preparing data finished ...\n")
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
-    args.src_in_units = feature_dict[dataset.name_user].shape[1]
+    args.src_in_units = dataset.us[dataset.name_user].shape[1]
     args.dst_in_units = feature_dict[dataset.name_movie].shape[1]
     args.nratings = possible_rating_values.size
     print("args.nratings:", args.nratings)
@@ -164,7 +140,7 @@ def train(args):
             train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
-            pred_ratings = net(dataset.train_graph, user_input, movie_input, train_rating_pairs)
+            pred_ratings = net(dataset.train_graph, train_rating_pairs)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:
@@ -200,7 +176,7 @@ def train(args):
             count_num = 0
 
         if iter_idx % args.train_valid_interval == 0:
-            valid_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, dataset=dataset, segment='valid')
+            valid_rmse = evaluate(args=args, net=net, dataset=dataset, segment='valid')
             valid_loss_logger.log(iter = iter_idx, rmse = valid_rmse)
             logging_str += ',\tVal RMSE={:.4f}'.format(valid_rmse)
 
@@ -209,7 +185,7 @@ def train(args):
                 no_better_valid = 0
                 best_iter = iter_idx
                 #net.save_parameters(filename=os.path.join(args.save_dir, 'best_valid_net{}.params'.format(args.save_id)))
-                test_rmse = evaluate(args=args, net=net, feature_dict=feature_dict, dataset=dataset, segment='test')
+                test_rmse = evaluate(args=args, net=net, dataset=dataset, segment='test')
                 best_test_rmse = test_rmse
                 test_loss_logger.log(iter=iter_idx, rmse=test_rmse)
                 logging_str += ', Test RMSE={:.4f}'.format(test_rmse)
