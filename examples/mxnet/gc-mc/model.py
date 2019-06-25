@@ -88,7 +88,7 @@ class MultiLinkGCNAggregator(Block):
 
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
-        src_dst_g.send_and_recv(src_dst_g.edges,
+        src_dst_g.send_and_recv(src_dst_g.edges(),
                                 src_dst_msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
         dst_src_g.send_and_recv(dst_src_g.edges(),

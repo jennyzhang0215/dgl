@@ -91,7 +91,6 @@ class MovieLens(object):
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
         self.test_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
         self.test_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
-        print("self.test_graph[self.name_movie].ndata['fea']", self.test_graph[self.name_movie].ndata['fea'])
 
         uv_test_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
         vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
@@ -102,18 +101,21 @@ class MovieLens(object):
                  vu_test_graph.edge_ids(self.train_rating_pairs[1], self.train_rating_pairs[0]) })
         self.train_graph.copy_from_parent()
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
-        print("Train graph: \n\t#user:{}\n\t#movie:{}\n\t#pairs:{}".format(
-            self.train_graph[self.name_user].number_of_nodes(),
-            self.train_graph[self.name_movie].number_of_nodes(),
+        print("Train graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
+            self.train_graph[self.name_user].number_of_nodes(), self.train_graph[self.name_movie].number_of_nodes(),
             self.train_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-
-        print("Test graph: \n\t#user:{}\n\t#movie:{}\n\t#pairs:{}".format(
-            self.test_graph[self.name_user].number_of_nodes(),
-            self.test_graph[self.name_movie].number_of_nodes(),
+        print("Test graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
+            self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-        print("self.train_graph[self.name_movie].ndata['fea']", self.train_graph[self.name_movie].ndata['fea'])
-        print("self.train_graph->support0",
-              self.train_graph[self.name_user, self.name_movie, self.name_edge].edata['support0'])
+
+        uv_train_graph = self.train_graph[self.name_user, self.name_movie, self.name_edge]
+        vu_train_graph = self.train_graph[self.name_movie, self.name_user, self.name_edge]
+        print(uv_train_graph.edges())
+        print(vu_train_graph.edges())
+
+
+
+
 
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
@@ -431,11 +433,6 @@ class MovieLens(object):
 
         else:
             support_sp_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
-
-        num_edges = 0
-        for sup in support_sp_l:
-            num_edges += sup.nnz
-        print("edges from support: {}".format(num_edges))
         return support_sp_l
 
 
