@@ -101,8 +101,8 @@ def train(args):
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
-    args.src_in_units = dataset.us[dataset.name_user].shape[1]
-    args.dst_in_units = feature_dict[dataset.name_movie].shape[1]
+    args.src_in_units = dataset.user_feature.shape[1]
+    args.dst_in_units = dataset.movie_feature.shape[1]
     args.nratings = possible_rating_values.size
     print("args.nratings:", args.nratings)
     ### build the net
