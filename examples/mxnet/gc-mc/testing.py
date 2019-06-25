@@ -91,13 +91,11 @@ def gen_bipartite():
     print("#items: {}".format(g['item'].number_of_nodes()))
     # print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
     # print("#\t(item-->user) ratings: {}".format(g['item', 'user', 'rating'].number_of_edges()))
-    g['user'].ndata['h'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)*2
-    g['item'].ndata['h'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)*10
+    g['user'].ndata['fea'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)*2
+    g['item'].ndata['fea'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)*10
 
     def msg_func(edges):
-        # print("edges.src['h']", edges.src['h'])
-        print("edges.src['h']", edges.src['h'])
-        return {'m': edges.src['h']}
+        return {'m': edges.src['fea']}
     def apply_node_func(nodes):
         return {'res': nodes.data['accum']}
 
@@ -136,9 +134,9 @@ def gen_bipartite():
                                                                      user_item_pair[1, :]),
                              ('item', 'user', 'rating'): g2.edge_ids(user_item_pair[1, :],
                                                                      user_item_pair[0, :])})
-    print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
-    print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
-
+    # print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
+    # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
+    print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
 
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
     # print("g.adj", g_adj)
