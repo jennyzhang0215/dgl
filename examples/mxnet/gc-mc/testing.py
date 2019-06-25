@@ -136,7 +136,8 @@ def gen_bipartite():
                                                                      user_item_pair[1, :]),
                              ('item', 'user', 'rating'): g2.edge_ids(user_item_pair[1, :],
                                                                      user_item_pair[0, :])})
-    print(sub_g.edges("all", "srcdst"))
+    print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
+    print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
 
 
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
