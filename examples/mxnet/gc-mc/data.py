@@ -84,7 +84,7 @@ class MovieLens(object):
         print(info_line)
 
         all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
-        self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
+        train_rating_pairs, _ = self._generate_pair_value(self.train_rating_info)
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
@@ -96,10 +96,13 @@ class MovieLens(object):
         vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
         self.train_graph = self.test_graph.edge_subgraph(
             {(self.name_user, self.name_movie, self.name_edge):
-                 uv_test_graph.edge_ids(self.train_rating_pairs[0], self.train_rating_pairs[1]),
+                 uv_test_graph.edge_ids(train_rating_pairs[0], train_rating_pairs[1]),
              (self.name_movie, self.name_user, self.name_edge):
-                 vu_test_graph.edge_ids(self.train_rating_pairs[1], self.train_rating_pairs[0]) })
+                 vu_test_graph.edge_ids(train_rating_pairs[1], train_rating_pairs[0]) })
         self.train_graph.copy_from_parent()
+        self.train_rating_pairs = self.train_graph[self.name_user, self.name_movie, self.name_edge].edges()
+        self.train_rating_values = self.train_graph[self.name_user, self.name_movie, self.name_edge].edata['R']
+
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
         print("Train graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.train_graph[self.name_user].number_of_nodes(), self.train_graph[self.name_movie].number_of_nodes(),
@@ -107,7 +110,6 @@ class MovieLens(object):
         print("Test graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-
 
 
 
@@ -145,6 +147,9 @@ class MovieLens(object):
         #     edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
         #     # node_frame={"user": self.user_features, "movie": self.movie_features},
         #     readonly=True)
+        graph[self.name_user, self.name_movie, self.name_edge].edata['R'] \
+            = mx.nd.array(rating_values, ctx=self._ctx, dtype=np.float32)
+
         if add_support:
             uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
             for idx, sup in enumerate(uv_train_support_l):
