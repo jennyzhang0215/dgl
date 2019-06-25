@@ -134,6 +134,7 @@ def gen_bipartite():
                                                                      user_item_pair[1, :]),
                              ('item', 'user', 'rating'): g2.edge_ids(user_item_pair[1, :],
                                                                      user_item_pair[0, :])})
+    sub_g.copy_from_parent()
     # print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
     # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
     print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
