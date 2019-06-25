@@ -17,6 +17,9 @@ import dgl.function as fn
 2 |1 |  |  |4 |  |
 3 |  |2 |  |  |5 |
 """
+# user_item_pair = np.array([[0, 0, 0, 1, 1, 2, 2, 3, 3],
+#                            [0, 1, 3, 2, 4, 0, 3, 1, 4]])
+
 
 def _globally_normalize_bipartite_adjacency(adjacencies, symmetric=True):
     """ Globally Normalizes set of bipartite adjacency matrices """
@@ -110,9 +113,30 @@ def gen_bipartite():
                      msg_func, fn.sum("m", "accum"), apply_node_func)
     #g2.update_all(msg_func, fn.sum("m", "accum"), apply_node_func)
     print('g2["item"]', g2["item"].ndata.pop('res'))
-    print('g2["user"]', g2["user"].ndata.pop('res'))
+    #print('g2["user"]', g2["user"].ndata.pop('res'))
 
-    print('g["item"]', g["item"].ndata.pop('res'))
+    #print('g["item"]', g["item"].ndata.pop('res'))
+
+    print("=========================\n\n\n")
+
+    """
+       0  1  2  3  4
+       -- -- -- -- --
+    0 |  |2 |  |  |  |
+    1 |  |  |3 |  |  |
+    2 |1 |  |  |4 |  |
+    3 |  |  |  |  |5 |
+    """
+    # user_item_pair = np.array([[0, 1, 2, 2, 3],
+    #                            [1, 2, 0, 3, 4]])
+
+    user_item_pair = np.array([[0, 1, 2, 2, 3],
+                               [1, 2, 0, 3, 4]])
+    sub_g = g.edge_subgraph({('user', 'item', 'rating'): (user_item_pair[0, :],
+                                                          user_item_pair[1, :]),
+                             ('item', 'user', 'rating'): (user_item_pair[1, :],
+                                                          user_item_pair[0, :])})
+    print(sub_g.edges("all", "srcdst"))
 
 
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
