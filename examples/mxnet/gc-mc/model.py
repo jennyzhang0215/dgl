@@ -50,7 +50,7 @@ class MultiLinkGCNAggregator(Block):
             #                               allow_deferred_init=True)
 
     def forward(self, g):
-        def msg_func(edges):
+        def src_dst_msg_func(edges):
             print("In src_dst_msg_func() ......\n\n\n\n\n")
             #print("\n\n In the message function ...")
             msgs = []
@@ -69,6 +69,22 @@ class MultiLinkGCNAggregator(Block):
             else:
                 raise NotImplementedError
             return mess_func
+        def dst_src_msg_func(edges):
+            print("In src_dst_msg_func() ......\n\n\n\n\n")
+            #print("\n\n In the message function ...")
+            msgs = []
+            for i in range(self._num_links):
+                # w = kwargs['weight{}'.format(i)]
+                w = self.dst_src_weights.data()[i]
+                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+                               * mx.nd.dot(self.dropout(edges.src['fea']), w, transpose_b=True))
+            if self._accum == "sum":
+                mess_func = {'msg': mx.nd.add_n(*msgs)}
+            elif self._accum == "stack":
+                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
+            else:
+                raise NotImplementedError
+            return mess_func
 
         def apply_node_func(nodes):
             return {'h': self.act(nodes.data['accum'])}
@@ -76,10 +92,10 @@ class MultiLinkGCNAggregator(Block):
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
         src_dst_g.send_and_recv(src_dst_g.edges,
-                                msg_func, fn.sum('msg', 'accum'),
+                                src_dst_msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
         dst_src_g.send_and_recv(dst_src_g.edges(),
-                                msg_func, fn.sum('msg', 'accum'),
+                                dst_src_msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
 
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')

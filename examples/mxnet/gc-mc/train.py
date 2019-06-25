@@ -13,7 +13,6 @@ from utils import get_activation, parse_ctx, gluon_net_info, gluon_total_param_n
 from mxnet.gluon import nn, HybridBlock, Block
 import time
 
-
 class Net(Block):
     def __init__(self, args, **kwargs):
         super(Net, self).__init__(**kwargs)
@@ -51,8 +50,6 @@ class Net(Block):
         #print("The time for decoder is: {:.1f}s".format(time.time()-start))
         return pred_ratings
 
-
-
 def evaluate(args, net, dataset, segment='valid'):
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
@@ -89,7 +86,6 @@ def evaluate(args, net, dataset, segment='valid'):
 def train(args):
     dataset = MovieLens(args.data_name, args.ctx, use_one_hot_fea=args.use_one_hot_fea, symm=args.gcn_agg_norm_symm)
     print("Loading data finished ...\n")
-
     ### prepare data
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
