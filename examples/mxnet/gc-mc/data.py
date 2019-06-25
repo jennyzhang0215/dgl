@@ -440,7 +440,7 @@ class MovieLens(object):
 
 
 if __name__ == '__main__':
-    MovieLens("ml-100k", ctx=mx.Context.gpu(0), symm=True)
-    MovieLens("ml-100k", ctx=mx.Context.gpu(0), symm=False)
-    MovieLens("ml-1m", ctx=mx.Context.gpu(0), symm=True)
-    MovieLens("ml-1m", ctx=mx.Context.gpu(0), symm=False)
+    MovieLens("ml-100k", ctx=mx.gpu(0), symm=True)
+    MovieLens("ml-100k", ctx=mx.gpu(0), symm=False)
+    MovieLens("ml-1m", ctx=mx.gpu(0), symm=True)
+    MovieLens("ml-1m", ctx=mx.gpu(0), symm=False)

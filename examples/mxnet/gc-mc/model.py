@@ -51,15 +51,13 @@ class MultiLinkGCNAggregator(Block):
 
     def forward(self, g):
         def src_dst_msg_func(edges):
-            print("In src_dst_msg_func() ......\n\n\n\n\n")
-            #print("\n\n In the message function ...")
             msgs = []
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.src_dst_weights.data()[i]
-                print("edges.src['fea']", edges.src['fea'])
-                print("edges.dst['fea']", edges.dst['fea'])
-                print("w", w, "\n\n")
+                # print("edges.src['fea']", edges.src['fea'])
+                # print("edges.dst['fea']", edges.dst['fea'])
+                # print("w", w, "\n\n")
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                             * mx.nd.dot(self.dropout(edges.src['fea']), w, transpose_b=True))
             if self._accum == "sum":
