@@ -73,10 +73,8 @@ class MovieLens(object):
 
         ### Generate features
         if use_one_hot_fea:
-            nd_user_indices = mx.nd.arange(self.num_user, ctx=self._ctx)
-            nd_item_indices = mx.nd.arange(self.num_movie, ctx=self._ctx)
-            self.user_feature = mx.nd.one_hot(nd_user_indices, self.num_user)
-            self.movie_feature = mx.nd.one_hot(nd_item_indices, self.num_movie)
+            self.user_feature = np.eye(self.num_user)
+            self.movie_feature = np.eye(self.num_movie)
         else:
             self.user_feature = self._process_user_fea()
             self.movie_feature = self._process_movie_fea()
@@ -91,8 +89,8 @@ class MovieLens(object):
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
-        self.test_graph[self.name_user].ndata['fea'] = self.user_feature
-        self.test_graph[self.name_movie].ndata['fea'] = self.movie_feature
+        self.test_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
+        self.test_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
 
         uv_test_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
         vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
