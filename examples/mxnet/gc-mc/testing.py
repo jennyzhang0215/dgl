@@ -137,7 +137,7 @@ def gen_bipartite():
     sub_g.copy_from_parent()
     user_item_sub_g = sub_g['user', 'item', 'rating']
     print(user_item_sub_g.edges())
-    print(user_item_sub_g.edata['rating'])
+    print(user_item_sub_g.edata['R'])
     # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
     #print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
     print("user_item_sub_g.parent_nid('item')", user_item_sub_g.parent_nid('item'))
