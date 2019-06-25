@@ -58,7 +58,11 @@ print("(subg_dst, subg_src)", (subg_dst, subg_src))
 print("dstsrc_g.edge_ids(subg_dst, subg_src)", dstsrc_g.edge_ids(subg_dst, subg_src))
 subg = g.edge_subgraph({('src', 'dst', 'e'): subg_eid,
                         ('dst', 'src', 'e'): dstsrc_g.edge_ids(subg_dst, subg_src)})
+
 subg.copy_from_parent()
+print('subg.edges("all", "srcdst")', subg.edges("all", "srcdst"))
+print("subg['src', 'dst', 'e'].edata['eid']", subg['src', 'dst', 'e'].edata['eid'])
+
 assert_array_equal(np.unique(F.asnumpy(subg['src'].ndata['nid'])),
                    np.unique(F.asnumpy(subg_src)))
 assert_array_equal(np.unique(F.asnumpy(subg['dst'].ndata['nid'])),
