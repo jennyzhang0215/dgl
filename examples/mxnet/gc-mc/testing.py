@@ -85,8 +85,8 @@ def gen_bipartite():
                                                           ('item', 'user', 'rating'): (user_item_pair[1, :],
                                                                                        user_item_pair[0, :])},
                               readonly = True)
-    # g['user', 'item', 'rating'].edata["R"] = user_item_ratings
-    # g['item', 'user', 'rating'].edata["R"] = user_item_ratings
+    g['user', 'item', 'rating'].edata["R"] = user_item_ratings
+    g['item', 'user', 'rating'].edata["R"] = user_item_ratings
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     # print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
@@ -136,6 +136,7 @@ def gen_bipartite():
                                                                      user_item_pair[0, :])})
     sub_g.copy_from_parent()
     print(sub_g['user', 'item', 'rating'].edges())
+    print(sub_g['user', 'item', 'rating'].edata['R'])
     # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
     #print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
     print(sub_g['item', 'user', 'rating'].parent_nid())
