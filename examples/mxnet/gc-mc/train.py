@@ -87,7 +87,7 @@ def evaluate(args, net, dataset, segment='valid'):
     return rmse
 
 def train(args):
-    dataset = MovieLens(args.data_name, args.ctx, symm=args.gcn_agg_norm_symm)
+    dataset = MovieLens(args.data_name, args.ctx, use_one_hot_fea=args.use_one_hot_fea, symm=args.gcn_agg_norm_symm)
     print("Loading data finished ...\n")
 
     ### prepare data

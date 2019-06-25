@@ -91,6 +91,7 @@ class MovieLens(object):
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
         self.test_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
         self.test_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
+        print("self.test_graph[self.name_movie].ndata['fea']", self.test_graph[self.name_movie].ndata['fea'])
 
         uv_test_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
         vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
@@ -110,7 +111,7 @@ class MovieLens(object):
             self.test_graph[self.name_user].number_of_nodes(),
             self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-        print(self.train_graph[self.name_movie].ndata['fea'])
+        print("self.test_graph[self.name_movie].ndata['fea']", self.train_graph[self.name_movie].ndata['fea'])
 
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
