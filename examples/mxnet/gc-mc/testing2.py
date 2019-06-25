@@ -70,11 +70,11 @@ subg['src'].ndata['fea'] = mx.nd.ones((subg['src'].number_of_nodes(), 2), ctx=ct
 subg['dst'].ndata['fea'] = mx.nd.ones((subg['dst'].number_of_nodes(), 3), ctx=ctx) * 3
 
 
-assert_array_equal(np.unique(F.asnumpy(subg['src'].ndata['nid'])),
-                   np.unique(F.asnumpy(subg_src)))
-assert_array_equal(np.unique(F.asnumpy(subg['dst'].ndata['nid'])),
-                   np.unique(F.asnumpy(subg_dst)) + src_g.number_of_nodes())
-assert_array_equal(F.asnumpy(subg['src', 'dst', 'e'].edata['eid']),
-                       subg_eid.tonumpy())
-assert_array_equal(F.asnumpy(subg['dst', 'src', 'e'].edata['eid']),
-                       subg_eid.tonumpy() + srcdst_g.number_of_edges())
+assert_array_equal(np.unique(subg['src'].ndata['nid'].asnumpy()),
+                   np.unique(subg_src.asnumpy()))
+assert_array_equal(np.unique(subg['dst'].ndata['nid'].asnumpy()),
+                   np.unique(subg_dst.asnumpy()) + src_g.number_of_nodes())
+assert_array_equal(subg['src', 'dst', 'e'].edata['eid'].asnumpy(),
+                       subg_eid.asnumpy())
+assert_array_equal(subg['dst', 'src', 'e'].edata['eid'].asnumpy(),
+                       subg_eid.asnumpy() + srcdst_g.number_of_edges())
