@@ -135,35 +135,10 @@ def gen_bipartite():
                              ('item', 'user', 'rating'): g2.edge_ids(user_item_pair[1, :],
                                                                      user_item_pair[0, :])})
     sub_g.copy_from_parent()
-    # print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
+    print(sub_g['user', 'item', 'rating'].edges())
     # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
     #print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
-    print(sub_g['user'].parent_nid())
-    # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
-    # print("g.adj", g_adj)
-    #
-    # g_adj_scipy = g.adjacency_matrix_scipy(('user', 'item', 'rating'))
-    # print("g.g_adj_scipy", g_adj_scipy.todense())
-
-
-
-    # support_l = compute_support(user_item_R, num_link, sym)
-    # for idx, support in enumerate(support_l):
-    #     sup_coo = support.tocoo()
-    #     print("sup_coo.row", sup_coo.row)
-    #     print("sup_coo.col", sup_coo.col)
-    #     print("sup_coo.data", sup_coo.data)
-    #     g.edges[np.array(sup_coo.row, dtype=np.int64),
-    #             np.array(sup_coo.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-    #         mx.nd.array(sup_coo.data, ctx=ctx)
-    #
-
-
-    # print("g.edges('all', 'eid')", g.edges('all', 'eid'))
-    # print("g.edges('all', 'srcdst')", g.edges('all', 'srcdst'))
-    # print("g.edges('uv', 'eid')", g.edges('uv', 'eid'))
-    # print("g.edges('uv', 'srcdst')", g.edges('uv', 'srcdst'))
-
+    print(sub_g['item', 'user', 'rating'].parent_nid())
 
     return g
 
