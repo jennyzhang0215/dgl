@@ -87,32 +87,31 @@ def evaluate(args, net, dataset, segment='valid'):
 def train(args):
     dataset = MovieLens(args.data_name, args.ctx, use_one_hot_fea=args.use_one_hot_fea, symm=args.gcn_agg_norm_symm)
     print("Loading data finished ...\n")
-    ### prepare data
-    possible_rating_values = dataset.possible_rating_values
-    train_rating_pairs = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
-    train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
-    print("Preparing data finished ...\n")
 
     args.src_key = dataset.name_user
     args.dst_key = dataset.name_movie
     args.src_in_units = dataset.user_feature.shape[1]
     args.dst_in_units = dataset.movie_feature.shape[1]
-    args.nratings = possible_rating_values.size
+    args.nratings = dataset.possible_rating_values.size
 
     ### build the net
     net = Net(args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
     net.hybridize()
     if args.gen_r_use_classification:
-        nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
+        nd_possible_rating_values = mx.nd.array(dataset.possible_rating_values, ctx=args.ctx, dtype=np.float32)
         rating_loss_net = gluon.loss.SoftmaxCELoss()
     else:
-        rating_mean = train_gt_ratings.mean()
-        rating_std = train_gt_ratings.std()
+        rating_mean = dataset.train_rating_values.mean()
+        rating_std = dataset.train_rating_values.std()
         rating_loss_net = gluon.loss.L2Loss()
     rating_loss_net.hybridize()
     trainer = gluon.Trainer(net.collect_params(), args.train_optimizer, {'learning_rate': args.train_lr})
     print("Loading network finished ...\n")
+
+    ### perpare training data
+    train_rating_pairs = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
+    train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
 
     ### prepare the logger
     train_loss_logger = MetricLogger(['iter', 'loss', 'rmse'], ['%d', '%.4f', '%.4f'],
@@ -134,7 +133,7 @@ def train(args):
     print("Start training ...")
     for iter_idx in range(1, args.train_max_iter):
         if args.gen_r_use_classification:
-            train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
+            train_gt_label = mx.nd.array(np.searchsorted(dataset.possible_rating_values, dataset.train_rating_values),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
             pred_ratings = net(dataset.train_graph, train_rating_pairs)
