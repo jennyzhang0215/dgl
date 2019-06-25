@@ -7,7 +7,7 @@ import dgl
 import sys
 import mxnet as mx
 import dgl.function as fn
-import mx.nd as F
+import mxnet.ndarray as F
 from numpy.testing import assert_array_equal
 
 def edge_pair_input(sort=False):
