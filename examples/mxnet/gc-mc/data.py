@@ -108,12 +108,6 @@ class MovieLens(object):
             self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
 
-        uv_train_graph = self.train_graph[self.name_user, self.name_movie, self.name_edge]
-        vu_train_graph = self.train_graph[self.name_movie, self.name_user, self.name_edge]
-        print(uv_train_graph.edges())
-        print(vu_train_graph.edges())
-
-
 
 
 
@@ -434,10 +428,6 @@ class MovieLens(object):
         else:
             support_sp_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
         return support_sp_l
-
-
-
-
 
 if __name__ == '__main__':
     MovieLens("ml-100k", ctx=mx.gpu(0), symm=True)

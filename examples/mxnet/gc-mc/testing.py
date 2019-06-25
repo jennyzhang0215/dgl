@@ -137,8 +137,8 @@ def gen_bipartite():
     sub_g.copy_from_parent()
     # print(sub_g['user', 'item', 'rating'].edges("all", "srcdst"))
     # print(sub_g['item', 'user', 'rating'].edges("all", "srcdst"))
-    print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
-
+    #print("sub_g['user'].ndata['fea']", sub_g['user'].ndata['fea'])
+    print(sub_g['user'].parent_nid())
     # g_adj = g.adjacency_matrix(('user', 'item', 'rating'))
     # print("g.adj", g_adj)
     #
