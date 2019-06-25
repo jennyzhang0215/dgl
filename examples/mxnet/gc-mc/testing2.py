@@ -40,8 +40,6 @@ def gen_from_edgelist(directed):
 g = gen_from_edgelist(False)
 src_g = g['src']
 dst_g = g['dst']
-print("src_g", src_g)
-print("dst_g", dst_g)
 print("src_g.number_of_nodes()", src_g.number_of_nodes())
 print("dst_g.number_of_nodes()", dst_g.number_of_nodes())
 
@@ -51,8 +49,6 @@ dst_g.ndata['nid'] = F.arange(src_g.number_of_nodes(),
 srcdst_g = g['src', 'dst', 'e']
 dstsrc_g = g['dst', 'src', 'e']
 
-print("srcdst_g", srcdst_g)
-print("dstsrc_g", dstsrc_g)
 srcdst_g.edata['eid'] = F.arange(0, srcdst_g.number_of_edges())
 dstsrc_g.edata['eid'] = F.arange(srcdst_g.number_of_edges(),
                                  srcdst_g.number_of_edges() * 2)
