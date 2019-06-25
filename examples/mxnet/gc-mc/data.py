@@ -82,10 +82,22 @@ class MovieLens(object):
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
-        self.train_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
+        self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
+        test_user_item_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
+        test_item_user_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
+        self.train_graph = self.test_graph.edge_subgraph(
+            {(self.name_user, self.name_movie, self.name_edge):
+                 test_user_item_graph.edge_ids(self.train_rating_pairs[0], self.train_rating_pairs[1]),
+             (self.name_movie, self.name_user, self.name_edge):
+                 test_item_user_graph.edge_ids(self.train_rating_pairs[1], self.train_rating_pairs[0]) })
+        self.train_graph.copy_from_parent()
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
         print("Train graph: \n\t#user:{}\n\t#movie:{}".format(self.train_graph[self.name_user].number_of_nodes(),
                                                               self.train_graph[self.name_movie].number_of_nodes()))
+
+        print("Test graph: \n\t#user:{}\n\t#movie:{}".format(self.test_graph[self.name_user].number_of_nodes(),
+                                                             self.test_graph[self.name_movie].number_of_nodes()))
+
     def _generate_pair_value(self, rating_info):
         rating_pairs = (np.array([self.global_user_id_map[ele] for ele in rating_info["user_id"]],
                                  dtype=np.int64),
