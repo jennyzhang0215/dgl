@@ -82,14 +82,15 @@ class MovieLens(object):
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
-        self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values)
-        test_user_item_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
-        test_item_user_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
+        self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
+
+        uv_test_graph = self.test_graph[self.name_user, self.name_movie, self.name_edge]
+        vu_test_graph = self.test_graph[self.name_movie, self.name_user, self.name_edge]
         self.train_graph = self.test_graph.edge_subgraph(
             {(self.name_user, self.name_movie, self.name_edge):
-                 test_user_item_graph.edge_ids(self.train_rating_pairs[0], self.train_rating_pairs[1]),
+                 uv_test_graph.edge_ids(self.train_rating_pairs[0], self.train_rating_pairs[1]),
              (self.name_movie, self.name_user, self.name_edge):
-                 test_item_user_graph.edge_ids(self.train_rating_pairs[1], self.train_rating_pairs[0]) })
+                 vu_test_graph.edge_ids(self.train_rating_pairs[1], self.train_rating_pairs[0]) })
         self.train_graph.copy_from_parent()
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
         print("Train graph: \n\t#user:{}\n\t#movie:{}\n\t#pairs:{}".format(
@@ -110,7 +111,7 @@ class MovieLens(object):
         rating_values = rating_info["rating"].values.astype(np.float32)
         return rating_pairs, rating_values
 
-    def _generate_graphs(self, rating_pairs, rating_values):
+    def _generate_graphs(self, rating_pairs, rating_values, add_support=False):
         user_movie_ratings_coo = sp.coo_matrix(
             (rating_values, rating_pairs),
             shape=(self._num_user, self._num_movie),dtype=np.float32)
@@ -136,20 +137,20 @@ class MovieLens(object):
         #     edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
         #     # node_frame={"user": self.user_features, "movie": self.movie_features},
         #     readonly=True)
+        if add_support:
+            uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
+            for idx, sup in enumerate(uv_train_support_l):
+                graph[self.name_user, self.name_movie, self.name_edge].edges[
+                    np.array(sup.row, dtype=np.int64),
+                    np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                    mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
 
-        uv_train_support_l = self.compute_support(user_movie_R, self.num_links, self._symm)
-        for idx, sup in enumerate(uv_train_support_l):
-            graph[self.name_user, self.name_movie, self.name_edge].edges[
-                np.array(sup.row, dtype=np.int64),
-                np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
-
-        vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
-        for idx, sup in enumerate(vu_train_support_l):
-            graph[self.name_movie, self.name_user, self.name_edge].edges[
-                np.array(sup.row, dtype=np.int64),
-                np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
-                mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
+            vu_train_support_l = self.compute_support(movie_user_R, self.num_links, self._symm)
+            for idx, sup in enumerate(vu_train_support_l):
+                graph[self.name_movie, self.name_user, self.name_edge].edges[
+                    np.array(sup.row, dtype=np.int64),
+                    np.array(sup.col, dtype=np.int64)].data['support{}'.format(idx)] = \
+                    mx.nd.array(sup.data, ctx=self._ctx, dtype=np.float32)
 
         return graph
 
