@@ -84,10 +84,15 @@ class MovieLens(object):
         print(info_line)
 
         all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
-        train_rating_pairs, _ = self._generate_pair_value(self.train_rating_info)
+        # train_rating_pairs, _ = self._generate_pair_value(self.train_rating_info)
+        self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
 
+        self.train_graph = self._generate_graphs(self.train_rating_pairs, self.train_rating_values, add_support=True)
+        self.train_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
+        self.train_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
+        """
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
         self.test_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
         self.test_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
@@ -110,7 +115,7 @@ class MovieLens(object):
         print("Test graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-
+        """
 
 
     def _generate_pair_value(self, rating_info):

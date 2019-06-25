@@ -89,8 +89,8 @@ def train(args):
     ### prepare data
     possible_rating_values = dataset.possible_rating_values
     nd_possible_rating_values = mx.nd.array(possible_rating_values, ctx=args.ctx, dtype=np.float32)
-    train_rating_pairs = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
-    train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
+    #train_rating_pairs = mx.nd.array(dataset.train_rating_pairs, ctx=args.ctx, dtype=np.int64)
+    #train_gt_ratings = mx.nd.array(dataset.train_rating_values, ctx=args.ctx, dtype=np.float32)
     rating_mean = dataset.train_rating_values.mean()
     rating_std = dataset.train_rating_values.std()
     print("Preparing data finished ...\n")
@@ -133,15 +133,15 @@ def train(args):
     print("Start training ...")
     for iter_idx in range(1, args.train_max_iter):
         if args.gen_r_use_classification:
-            train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, train_gt_ratings),
+            train_gt_label = mx.nd.array(np.searchsorted(possible_rating_values, dataset.train_rating_values),
                                       ctx=args.ctx, dtype=np.int32)
         with mx.autograd.record():
-            pred_ratings = net(dataset.train_graph, train_rating_pairs)
+            pred_ratings = net(dataset.train_graph, dataset.train_rating_pairs)
             if args.gen_r_use_classification:
                 loss = rating_loss_net(pred_ratings, train_gt_label).mean()
             else:
                 loss = rating_loss_net(mx.nd.reshape(pred_ratings, shape=(-1,)),
-                                       (train_gt_ratings - rating_mean) / rating_std ).mean()
+                                       (dataset.train_rating_values - rating_mean) / rating_std ).mean()
             loss.backward()
 
         count_loss += loss.asscalar()
@@ -156,9 +156,9 @@ def train(args):
         if args.gen_r_use_classification:
             real_pred_ratings = (mx.nd.softmax(pred_ratings, axis=1) *
                                  nd_possible_rating_values.reshape((1, -1))).sum(axis=1)
-            rmse = mx.nd.square(real_pred_ratings - train_gt_ratings).sum()
+            rmse = mx.nd.square(real_pred_ratings - dataset.train_rating_values).sum()
         else:
-            rmse = mx.nd.square(pred_ratings.reshape((-1,)) * rating_std + rating_mean - train_gt_ratings).sum()
+            rmse = mx.nd.square(pred_ratings.reshape((-1,)) * rating_std + rating_mean - dataset.train_rating_values).sum()
         count_rmse += rmse.asscalar()
         count_num += pred_ratings.shape[0]
 
