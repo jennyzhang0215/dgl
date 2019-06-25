@@ -132,10 +132,10 @@ def gen_bipartite():
 
     user_item_pair = np.array([[0, 1, 2, 2, 3],
                                [1, 2, 0, 3, 4]])
-    sub_g = g.edge_subgraph({('user', 'item', 'rating'): (user_item_pair[0, :],
-                                                          user_item_pair[1, :]),
-                             ('item', 'user', 'rating'): (user_item_pair[1, :],
-                                                          user_item_pair[0, :])})
+    sub_g = g.edge_subgraph({('user', 'item', 'rating'): g1.edge_ids((user_item_pair[0, :],
+                                                                      user_item_pair[1, :])),
+                             ('item', 'user', 'rating'): g2.edge_ids((user_item_pair[1, :],
+                                                                      user_item_pair[0, :]))})
     print(sub_g.edges("all", "srcdst"))
 
 
