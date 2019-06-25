@@ -85,8 +85,8 @@ def gen_bipartite():
                                                           ('item', 'user', 'rating'): (user_item_pair[1, :],
                                                                                        user_item_pair[0, :])},
                               readonly = True)
-    g['user', 'item', 'rating'].edata["R"] = user_item_ratings
-    g['item', 'user', 'rating'].edata["R"] = user_item_ratings
+    g['user', 'item', 'rating'].edata["R"] = mx.nd.array(user_item_ratings, ctx=ctx, dtype=np.float32)
+    g['item', 'user', 'rating'].edata["R"] = mx.nd.array(user_item_ratings, ctx=ctx, dtype=np.float32)
     print("#users: {}".format(g['user'].number_of_nodes()))
     print("#items: {}".format(g['item'].number_of_nodes()))
     # print("#\t(user-->item) ratings: {}".format(g['user', 'item', 'rating'].number_of_edges()))
