@@ -65,8 +65,8 @@ subg.copy_from_parent()
 print('subg.edges("all", "srcdst")', subg['src', 'dst', 'e'].edges("all", "srcdst"))
 print("subg['src', 'dst', 'e'].edata['eid']", subg['src', 'dst', 'e'].edata['eid'])
 
-subg['src'].ndata['fea'] = mx.nd.ones((subg['src'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
-subg['dst'].ndata['fea'] = mx.nd.ones((subg['dst'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx) * 2
+subg['src'].ndata['fea'] = mx.nd.ones((subg['src'].number_of_nodes(), subg['user'].number_of_nodes()), ctx=ctx) * 2
+subg['dst'].ndata['fea'] = mx.nd.ones((subg['dst'].number_of_nodes(), subg['user'].number_of_nodes()), ctx=ctx) * 3
 
 
 assert_array_equal(np.unique(F.asnumpy(subg['src'].ndata['nid'])),
