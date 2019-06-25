@@ -97,7 +97,7 @@ def train(args):
     args.src_in_units = dataset.user_feature.shape[1]
     args.dst_in_units = dataset.movie_feature.shape[1]
     args.nratings = possible_rating_values.size
-    print("args.nratings:", args.nratings)
+
     ### build the net
     net = Net(args=args)
     net.initialize(init=mx.init.Xavier(factor_type='in'), ctx=args.ctx)
@@ -236,7 +236,7 @@ def config():
     parser.add_argument('--gcn_out_units', type=int, default=75)
     # parser.add_argument('--gcn_out_accum', type=str, default="stack")
 
-    parser.add_argument('--gen_r_use_classification', type=bool, default=True)
+    parser.add_argument('--gen_r_use_classification', type=bool, default=False)
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
     # parser.add_argument('--train_rating_batch_size', type=int, default=10000)
