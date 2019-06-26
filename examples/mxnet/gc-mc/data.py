@@ -132,10 +132,10 @@ class MovieLens(object):
         print("original valid_rating_pairs", valid_rating_pairs)
         for id in valid_rating_pairs[0]:
             if id not in train_rating_pairs[0]:
-                print("User id {} not in training graph")
+                print("User id {} not in training graph".format(id))
         for id in valid_rating_pairs[1]:
             if id not in train_rating_pairs[1]:
-                print("Movie id {} not in training graph")
+                print("Movie id {} not in training graph".format(id))
         self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
                                                      list(valid_rating_pairs[0]))),
                                             dtype=np.int64),
