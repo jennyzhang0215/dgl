@@ -55,13 +55,13 @@ class MovieLens(object):
         print("\tTest rating pairs  : {}".format(self.test_rating_info.shape[0]))
 
         self.user_info = self._drop_unseen_nodes(orign_info=self.user_info,
-                                            cmp_col_name="id",
-                                            reserved_ids_set=set(self.all_rating_info["user_id"].values),
-                                            label="user")
+                                                 cmp_col_name="id",
+                                                 reserved_ids_set=set(self.all_rating_info["user_id"].values),
+                                                 label="user")
         self.movie_info = self._drop_unseen_nodes(orign_info=self.movie_info,
-                                             cmp_col_name="id",
-                                             reserved_ids_set=set(self.all_rating_info["movie_id"].values),
-                                             label="movie")
+                                                  cmp_col_name="id",
+                                                  reserved_ids_set=set(self.all_rating_info["movie_id"].values),
+                                                  label="movie")
 
         # Map user/movie to the global id
         self.global_user_id_map = {ele: i for i, ele in enumerate(self.user_info['id'])}
@@ -83,7 +83,7 @@ class MovieLens(object):
         info_line += "\n{}: {}".format(self.name_movie, self.movie_feature.shape)
         print(info_line)
 
-        """
+
         self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
@@ -124,7 +124,7 @@ class MovieLens(object):
                                             dtype=np.int64),
                                    np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
                                                      list(train_rating_pairs[1]))),
-                                            dtype=np.int64) )
+                                            dtype=np.int64))
         print("original train_rating_pairs", train_rating_pairs)
         print("train_G  train_rating_pairs", self.train_rating_pairs)
         self.train_rating_values = train_rating_values
@@ -151,7 +151,7 @@ class MovieLens(object):
         print("Test graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-
+        """
 
 
     def _generate_pair_value(self, rating_info):
