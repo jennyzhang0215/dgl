@@ -118,17 +118,18 @@ class MovieLens(object):
                 test2train_g_node_id_map[node_type][p_nid] = idx
         print("test2train_g_node_id_map", test2train_g_node_id_map)
 
-        self.train_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get(100000000),
-                                                     train_rating_pairs[0])),
+        self.train_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
+                                                     list(train_rating_pairs[0]))),
                                             dtype=np.int64),
-                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get(100000000),
+                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
                                                      train_rating_pairs[1])),
                                             dtype=np.int64) )
+        print("self.train_rating_pairs", self.train_rating_pairs)
         self.train_rating_values = train_rating_values
-        self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get(100000000),
+        self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
                                                      valid_rating_pairs[0])),
                                             dtype=np.int64),
-                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get(100000000),
+                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
                                                      valid_rating_pairs[1])),
                                             dtype=np.int64) )
         self.valid_rating_values = valid_rating_values
