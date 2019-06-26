@@ -125,8 +125,10 @@ class MovieLens(object):
                                    np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
                                                      list(train_rating_pairs[1]))),
                                             dtype=np.int64) )
-        print("self.train_rating_pairs", self.train_rating_pairs)
+        print("original train_rating_pairs", train_rating_pairs)
+        print("train_G  train_rating_pairs", self.train_rating_pairs)
         self.train_rating_values = train_rating_values
+        
         self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
                                                      list(valid_rating_pairs[0]))),
                                             dtype=np.int64),
