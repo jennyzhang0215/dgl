@@ -122,15 +122,15 @@ class MovieLens(object):
                                                      list(train_rating_pairs[0]))),
                                             dtype=np.int64),
                                    np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
-                                                     train_rating_pairs[1])),
+                                                     list(train_rating_pairs[1]))),
                                             dtype=np.int64) )
         print("self.train_rating_pairs", self.train_rating_pairs)
         self.train_rating_values = train_rating_values
         self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
-                                                     valid_rating_pairs[0])),
+                                                     list(valid_rating_pairs[0]))),
                                             dtype=np.int64),
                                    np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
-                                                     valid_rating_pairs[1])),
+                                                     list(valid_rating_pairs[1]))),
                                             dtype=np.int64) )
         self.valid_rating_values = valid_rating_values
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
