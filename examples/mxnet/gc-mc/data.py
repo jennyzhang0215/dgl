@@ -83,8 +83,7 @@ class MovieLens(object):
         info_line += "\n{}: {}".format(self.name_movie, self.movie_feature.shape)
         print(info_line)
 
-        all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
-        # train_rating_pairs, _ = self._generate_pair_value(self.train_rating_info)
+        """
         self.train_rating_pairs, self.train_rating_values = self._generate_pair_value(self.train_rating_info)
         self.valid_rating_pairs, self.valid_rating_values = self._generate_pair_value(self.valid_rating_info)
         self.test_rating_pairs, self.test_rating_values = self._generate_pair_value(self.test_rating_info)
@@ -93,6 +92,11 @@ class MovieLens(object):
         self.train_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
         self.train_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
         """
+        all_train_rating_pairs, all_train_rating_values = self._generate_pair_value(self.all_train_rating_info)
+        train_rating_pairs, train_rating_values = self._generate_pair_value(self.train_rating_info)
+        valid_rating_pairs, valid_rating_values = self._generate_pair_value(self.valid_rating_info)
+        self.test_rating_pairs,  self.test_rating_values  = self._generate_pair_value(self.test_rating_info)
+
         self.test_graph = self._generate_graphs(all_train_rating_pairs, all_train_rating_values, add_support=True)
         self.test_graph[self.name_user].ndata['fea'] = mx.nd.array(self.user_feature, ctx=ctx, dtype=np.float32)
         self.test_graph[self.name_movie].ndata['fea'] = mx.nd.array(self.movie_feature, ctx=ctx, dtype=np.float32)
@@ -105,9 +109,27 @@ class MovieLens(object):
              (self.name_movie, self.name_user, self.name_edge):
                  vu_test_graph.edge_ids(train_rating_pairs[1], train_rating_pairs[0]) })
         self.train_graph.copy_from_parent()
-        self.train_rating_pairs = self.train_graph[self.name_user, self.name_movie, self.name_edge].edges()
-        self.train_rating_values = self.train_graph[self.name_user, self.name_movie, self.name_edge].edata['R']
 
+        test2train_g_node_id_map = {self.name_user:{}, self.name_movie:{}}
+        for node_type in [self.name_user, self.name_movie]:
+            for idx, p_nid in self.train_graph.parent_nid(node_type):
+                test2train_g_node_id_map[node_type][p_nid] = idx
+        print("test2train_g_node_id_map", test2train_g_node_id_map)
+
+        self.train_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get(100000000),
+                                                     train_rating_pairs[0])),
+                                            dtype=np.int64),
+                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get(100000000),
+                                                     train_rating_pairs[1])),
+                                            dtype=np.int64) )
+        self.train_rating_values = train_rating_values
+        self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get(100000000),
+                                                     valid_rating_pairs[0])),
+                                            dtype=np.int64),
+                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get(100000000),
+                                                     valid_rating_pairs[1])),
+                                            dtype=np.int64) )
+        self.valid_rating_values = valid_rating_values
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
         print("Train graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.train_graph[self.name_user].number_of_nodes(), self.train_graph[self.name_movie].number_of_nodes(),
@@ -115,7 +137,7 @@ class MovieLens(object):
         print("Test graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
             self.test_graph[self.name_user].number_of_nodes(), self.test_graph[self.name_movie].number_of_nodes(),
             self.test_graph[self.name_user, self.name_movie, self.name_edge].number_of_edges()))
-        """
+
 
 
     def _generate_pair_value(self, rating_info):
