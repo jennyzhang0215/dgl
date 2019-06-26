@@ -112,7 +112,7 @@ class MovieLens(object):
 
         test2train_g_node_id_map = {self.name_user:{}, self.name_movie:{}}
         for node_type in [self.name_user, self.name_movie]:
-            for idx, p_nid in self.train_graph.parent_nid(node_type):
+            for idx, p_nid in enumerate(self.train_graph.parent_nid(node_type)):
                 test2train_g_node_id_map[node_type][p_nid] = idx
         print("test2train_g_node_id_map", test2train_g_node_id_map)
 
