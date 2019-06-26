@@ -114,7 +114,7 @@ class MovieLens(object):
         for node_type in [self.name_user, self.name_movie]:
             test2train_g_node_id_map[node_type] = {}
             p_nids = self.train_graph.parent_nid(node_type).asnumpy()
-            print("{}: {} nodes".format(node_type, p_nid.size))
+            print("{}: {} nodes".format(node_type, p_nids.size))
             for idx, p_nid in enumerate(p_nids):
                 test2train_g_node_id_map[node_type][p_nid] = idx
         #print("test2train_g_node_id_map", test2train_g_node_id_map)
