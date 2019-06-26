@@ -110,9 +110,11 @@ class MovieLens(object):
                  vu_test_graph.edge_ids(train_rating_pairs[1], train_rating_pairs[0]) })
         self.train_graph.copy_from_parent()
 
-        test2train_g_node_id_map = {self.name_user:{}, self.name_movie:{}}
+        test2train_g_node_id_map = {}
         for node_type in [self.name_user, self.name_movie]:
-            for idx, p_nid in enumerate(self.train_graph.parent_nid(node_type)):
+            test2train_g_node_id_map[node_type] = {}
+            p_nids = self.train_graph.parent_nid(node_type).asnumpy()
+            for idx, p_nid in enumerate(p_nids):
                 test2train_g_node_id_map[node_type][p_nid] = idx
         print("test2train_g_node_id_map", test2train_g_node_id_map)
 
