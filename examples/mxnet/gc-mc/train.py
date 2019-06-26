@@ -61,8 +61,8 @@ def evaluate(args, net, dataset, segment='valid'):
     elif segment == "test":
         rating_pairs = dataset.test_rating_pairs
         rating_values = dataset.test_rating_values
-        graph = dataset.test_graph
-        #graph = dataset.train_graph
+        #graph = dataset.test_graph
+        graph = dataset.train_graph
     else:
         raise NotImplementedError
 

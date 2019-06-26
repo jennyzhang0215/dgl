@@ -50,16 +50,17 @@ class MultiLinkGCNAggregator(Block):
             #                               allow_deferred_init=True)
 
     def forward(self, g):
+
         def src_dst_msg_func(edges):
             msgs = []
-            for i in range(self._num_links):
+            for i in range(self._num_links): ## 5
                 # w = kwargs['weight{}'.format(i)]
-                w = self.src_dst_weights.data()[i]
+                w = self.src_dst_weights.data()[i] ## 500 * #nodes
                 # print("edges.src['fea']", edges.src['fea'])
                 # print("edges.dst['fea']", edges.dst['fea'])
                 # print("w", w, "\n\n")
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * mx.nd.dot(self.dropout(edges.src['fea']), w, transpose_b=True))
+                            * mx.nd.dot(self.dropout(edges.src['fea']), w, transpose_b=True)) ## #edge * (100 *5)
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
