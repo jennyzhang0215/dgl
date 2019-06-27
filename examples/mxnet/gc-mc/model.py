@@ -61,39 +61,48 @@ class MultiLinkGCNAggregator(Block):
             Ndata = {}
             for i in range(self._num_links):
                 w = self.dst_src_weights.data()[i] ## agg_units * #nodes
-                Ndata['w{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
+                Ndata['fea{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
-        def msg_func(edges):
-            msgs = []
-            for i in range(self._num_links): ## 5
-                #print("edges.src['fea']", edges.src['fea'])
-                #msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-                print("edges.data['support{}'".format(i)+"]", edges.data['support{}'.format(i)])
-                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
-            if self._accum == "sum":
-                mess_func = {'msg': mx.nd.add_n(*msgs)}
-            elif self._accum == "stack":
-                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
-            else:
-                raise NotImplementedError
-            return mess_func
+        # def msg_func(edges):
+        #     msgs = []
+        #     for i in range(self._num_links): ## 5
+        #         #print("edges.src['fea']", edges.src['fea'])
+        #         #msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+        #         print("edges.data['support{}'".format(i)+"]", edges.data['support{}'.format(i)])
+        #         msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+        #                     * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
+        #
+        #     return mess_func
 
         def apply_node_func(nodes):
-            return {'h': self.act(nodes.data['accum'])}
+            accums = []
+            for i in range(self._num_links):
+                accums.append(nodes.mailbox['accum{}'])
+            if self._accum == "sum":
+                accum = mx.nd.add_n(*accums)
+            elif self._accum == "stack":
+                accum = mx.nd.concat(*accums, dim=1)
+            else:
+                raise NotImplementedError
+            return {'h': self.act(accum)}
 
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
-        dst_src_g = g[self._dst_key, self._src_key, 'rating']
         g[self._src_key].apply_nodes(src_node_update)
         ##print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
-        src_dst_g.send_and_recv(src_dst_g.edges(),
-                                msg_func, fn.sum('msg', 'accum'),
-                                apply_node_func)
+        for i in range(self._num_links):
+            src_dst_g.send_and_recv(src_dst_g.edges(),
+                                    fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
+                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)))
+        src_dst_g[self._dst_key].apply_nodes(apply_node_func)
 
-        dst_src_g[self._dst_key].apply_nodes(dst_node_update)
-        dst_src_g.send_and_recv(dst_src_g.edges(),
-                                msg_func, fn.sum('msg', 'accum'),
-                                apply_node_func)
+
+        dst_src_g = g[self._dst_key, self._src_key, 'rating']
+        g[self._dst_key].apply_nodes(dst_node_update)
+        for i in range(self._num_links):
+            dst_src_g.send_and_recv(dst_src_g.edges(),
+                                    fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
+                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)))
+        dst_src_g[self._src_key].apply_nodes(apply_node_func)
 
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')
         src_h = dst_src_g[self._src_key].ndata.pop('h')
