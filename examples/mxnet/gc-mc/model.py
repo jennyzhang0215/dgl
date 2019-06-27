@@ -53,27 +53,23 @@ class MultiLinkGCNAggregator(Block):
         def src_node_update(nodes):
             Ndata = {}
             for i in range(self._num_links):
+                # w = kwargs['weight{}'.format(i)]
                 w = self.src_dst_weights.data()[i] ## 500 * #nodes
-                Ndata = {'w{}'.format(i): mx.nd.dot(self.dropout(nodes.data['fea']), w,
-                                                    transpose_b=True)}
+                Ndata = {'w{}'.format(i): mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)}
             return Ndata
         def dst_node_update(nodes):
             Ndata = {}
             for i in range(self._num_links):
                 w = self.dst_src_weights.data()[i] ## 500 * #nodes
-                Ndata = {'w{}'.format(i): mx.nd.dot(self.dropout(nodes.data['fea']), w,
-                                                    transpose_b=True)}
+                Ndata = {'w{}'.format(i): mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)}
             return Ndata
 
         def src_dst_msg_func(edges):
             msgs = []
             for i in range(self._num_links): ## 5
-                # w = kwargs['weight{}'.format(i)]
-                # print("edges.src['fea']", edges.src['fea'])
-                # print("edges.dst['fea']", edges.dst['fea'])
-                # print("w", w, "\n\n")
+                print("edges.src['fea']", edges.src['fea'])
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * edges.src.mailbox['w{}'.format(i)]) ## #edge * (100 * 5)
+                            * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
