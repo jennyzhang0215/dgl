@@ -100,11 +100,11 @@ class MultiLinkGCNAggregator(Block):
 
         ##print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
         for i in range(self._num_links):
-            print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
-            # filter edges
-            src_dst_g.edata['support{}'.format(i)] = mx.nd.reshape(src_dst_g.edata['support{}'.format(i)],
-                                                                   shape=(-1, 1))
-            print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
+            # print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
+            # # filter edges
+            # src_dst_g.edata['support{}'.format(i)] = mx.nd.reshape(src_dst_g.edata['support{}'.format(i)],
+            #                                                        shape=(-1, 1))
+            # print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
 
             src_dst_g.send_and_recv(src_dst_g.edges(), ### here we can filter edges
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
