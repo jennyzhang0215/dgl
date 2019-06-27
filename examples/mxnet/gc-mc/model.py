@@ -50,6 +50,7 @@ class MultiLinkGCNAggregator(Block):
             #                               allow_deferred_init=True)
 
     def forward(self, g):
+
         def src_node_update(nodes):
             Ndata = {}
             for i in range(self._num_links):
@@ -64,6 +65,29 @@ class MultiLinkGCNAggregator(Block):
                 Ndata['fea{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
 
+        g[self._src_key].apply_nodes(src_node_update)
+        g[self._dst_key].apply_nodes(dst_node_update)
+        print("")
+        """
+        def msg_func(edges):
+            msgs = []
+            for i in range(self._num_links):  ## 5
+                # print("edges.src['fea']", edges.src['fea'])
+                # msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+                print("edges.data['support{}'".format(i) + "]", edges.data['support{}'.format(i)])
+                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+                            * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+            if self._accum == "sum":
+                mess_func = {'msg': mx.nd.add_n(*msgs)}
+            elif self._accum == "stack":
+                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
+            else:
+                raise NotImplementedError
+            return mess_func
+        """
+
+
+
         def accum_node_func(nodes):
             accums = []
             for i in range(self._num_links):
@@ -77,7 +101,8 @@ class MultiLinkGCNAggregator(Block):
             return {'h': self.act(accum)}
 
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
-        g[self._src_key].apply_nodes(src_node_update)
+        dst_src_g = g[self._dst_key, self._src_key, 'rating']
+
         ##print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
         for i in range(self._num_links):
             print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
@@ -86,18 +111,17 @@ class MultiLinkGCNAggregator(Block):
                                                                    shape=(-1, 1))
             print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
 
-            src_dst_g.send_and_recv(src_dst_g.edges(),
+            src_dst_g.send_and_recv(src_dst_g.edges(), ### here we can filter edges
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
                                     fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
         src_dst_g[self._dst_key].apply_nodes(accum_node_func)
 
-        dst_src_g = g[self._dst_key, self._src_key, 'rating']
-        g[self._dst_key].apply_nodes(dst_node_update)
         for i in range(self._num_links):
             dst_src_g.send_and_recv(dst_src_g.edges(),
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
                                     fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
         dst_src_g[self._src_key].apply_nodes(accum_node_func)
+
 
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')
         src_h = dst_src_g[self._src_key].ndata.pop('h')
