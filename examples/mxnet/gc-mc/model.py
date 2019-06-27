@@ -63,12 +63,12 @@ class MultiLinkGCNAggregator(Block):
                 w = self.dst_src_weights.data()[i] ## agg_units * #nodes
                 Ndata['w{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
-
         def msg_func(edges):
             msgs = []
             for i in range(self._num_links): ## 5
                 #print("edges.src['fea']", edges.src['fea'])
                 #msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+                print("edges.data['support{}'.format(i)]", edges.data['support{}'.format(i)])
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                             * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
             if self._accum == "sum":
