@@ -63,16 +63,6 @@ class MultiLinkGCNAggregator(Block):
                 w = self.dst_src_weights.data()[i] ## agg_units * #nodes
                 Ndata['fea{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
-        # def msg_func(edges):
-        #     msgs = []
-        #     for i in range(self._num_links): ## 5
-        #         #print("edges.src['fea']", edges.src['fea'])
-        #         #msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-        #         print("edges.data['support{}'".format(i)+"]", edges.data['support{}'.format(i)])
-        #         msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-        #                     * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
-        #
-        #     return mess_func
 
         def accum_node_func(nodes):
             accums = []
@@ -90,18 +80,18 @@ class MultiLinkGCNAggregator(Block):
         g[self._src_key].apply_nodes(src_node_update)
         ##print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
         for i in range(self._num_links):
+            print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
             src_dst_g.send_and_recv(src_dst_g.edges(),
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
                                     fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
         src_dst_g[self._dst_key].apply_nodes(accum_node_func)
-
 
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
         g[self._dst_key].apply_nodes(dst_node_update)
         for i in range(self._num_links):
             dst_src_g.send_and_recv(dst_src_g.edges(),
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
-                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)))
+                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
         dst_src_g[self._src_key].apply_nodes(accum_node_func)
 
         dst_h = src_dst_g[self._dst_key].ndata.pop('h')
