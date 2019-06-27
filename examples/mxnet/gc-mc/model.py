@@ -67,31 +67,26 @@ class MultiLinkGCNAggregator(Block):
 
         g[self._src_key].apply_nodes(src_node_update)
         g[self._dst_key].apply_nodes(dst_node_update)
-        print("")
-        """
-        def msg_func(edges):
-            msgs = []
-            for i in range(self._num_links):  ## 5
-                # print("edges.src['fea']", edges.src['fea'])
-                # msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-                print("edges.data['support{}'".format(i) + "]", edges.data['support{}'.format(i)])
-                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-            if self._accum == "sum":
-                mess_func = {'msg': mx.nd.add_n(*msgs)}
-            elif self._accum == "stack":
-                mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
-            else:
-                raise NotImplementedError
-            return mess_func
-        """
-
-
+        # def msg_func(edges):
+        #     msgs = []
+        #     for i in range(self._num_links):  ## 5
+        #         # print("edges.src['fea']", edges.src['fea'])
+        #         # msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+        #         print("edges.data['support{}'".format(i) + "]", edges.data['support{}'.format(i)])
+        #         msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+        #                     * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+        #     if self._accum == "sum":
+        #         mess_func = {'msg': mx.nd.add_n(*msgs)}
+        #     elif self._accum == "stack":
+        #         mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
+        #     else:
+        #         raise NotImplementedError
+        #     return mess_func
 
         def accum_node_func(nodes):
             accums = []
             for i in range(self._num_links):
-                accums.append(nodes.mailbox['accum{}'])
+                accums.append(nodes.data['accum{}'])
             if self._accum == "sum":
                 accum = mx.nd.add_n(*accums)
             elif self._accum == "stack":
