@@ -97,8 +97,8 @@ class MultiLinkGCNAggregator(Block):
 
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
-        src_dst_g[self._src_key].apply_nodes(src_node_update)
-        print("src_dst_g[self._src_key].ndata['w0']", src_dst_g[self._src_key].mailbox['w0'])
+        g[self._src_key].apply_nodes(src_node_update)
+        print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
         src_dst_g.send_and_recv(src_dst_g.edges(),
                                 src_dst_msg_func, fn.sum('msg', 'accum'),
                                 apply_node_func)
