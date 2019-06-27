@@ -105,7 +105,7 @@ def gen_bipartite():
     g2 = g['item', 'user', 'rating']
 
     g1['user'].apply_nodes(apply_node_func)
-    print("g1['user'].ndata['res']", g1['user'].ndata['res'])
+    print("g1['user'].ndata['f']", g1['user'].ndata['f'])
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func2)
     print('g1["item"]', g1["item"].ndata.pop('res'))
