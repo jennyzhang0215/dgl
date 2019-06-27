@@ -97,13 +97,14 @@ def gen_bipartite():
     def msg_func(edges):
         return {'m': edges.src['fea']}
     def apply_node_func(nodes):
-        return {'res': nodes.data['accum']}
+        return {'res': nodes.data['fea']}
 
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
-    g2.ndata.update({{'res' : ft, 'a1' : a1, 'a2' : a2}})
+    g['user'].apply_nodes(apply_node_func)
+    print("g['user'].ndata['res']", g['user'].ndata['res'])
 
-
+    """
     print("For g1 ......")
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
@@ -120,14 +121,14 @@ def gen_bipartite():
 
     print("=========================\n\n\n")
 
-    """
-       0  1  2  3  4
-       -- -- -- -- --
-    0 |  |2 |  |  |  |
-    1 |  |  |3 |  |  |
-    2 |1 |  |  |4 |  |
-    3 |  |  |  |  |5 |
-    """
+    
+    #   0  1  2  3  4
+    #   -- -- -- -- --
+    #0 |  |2 |  |  |  |
+    #1 |  |  |3 |  |  |
+    #2 |1 |  |  |4 |  |
+    #3 |  |  |  |  |5 |
+    
     # user_item_pair = np.array([[0, 1, 2, 2, 3],
     #                            [1, 2, 0, 3, 4]])
 
@@ -146,7 +147,7 @@ def gen_bipartite():
     print("user_item_sub_g.parent_nid('item')", sub_g.parent_nid('item'))
     print("user_item_sub_g.parent_nid('user')", sub_g.parent_nid('user'))
 
-
+    """
     return g
 
 
