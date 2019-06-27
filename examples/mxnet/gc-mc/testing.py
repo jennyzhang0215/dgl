@@ -94,9 +94,9 @@ def gen_bipartite():
     g['user'].ndata['fea'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)*2
     g['item'].ndata['fea'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)*10
     def apply_node_func(nodes):
-        return {'res': nodes.data['fea']*200}
+        return {'f': nodes.data['fea']*200}
     def msg_func(edges):
-        return {'m': edges.src['res']}
+        return {'m': edges.src['f']}
     def apply_node_func2(nodes):
         return {'res': nodes.data['accum']}
 
@@ -107,7 +107,7 @@ def gen_bipartite():
     g1['user'].apply_nodes(apply_node_func)
     print("g1['user'].ndata['res']", g1['user'].ndata['res'])
     g1.send_and_recv(g1.edges(),
-                     msg_func, fn.sum("m", "accum"), apply_node_func)
+                     msg_func, fn.sum("m", "accum"), apply_node_func2)
     print('g1["item"]', g1["item"].ndata.pop('res'))
 
     """
