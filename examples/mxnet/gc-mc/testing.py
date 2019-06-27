@@ -94,7 +94,7 @@ def gen_bipartite():
     g['user'].ndata['fea'] = mx.nd.ones((g['user'].number_of_nodes(), g['user'].number_of_nodes()), ctx=ctx)*2
     g['item'].ndata['fea'] = mx.nd.ones((g['item'].number_of_nodes(), g['item'].number_of_nodes()), ctx=ctx)*10
     def apply_node_func(nodes):
-        return {'res': nodes.data['fea']}
+        return {'res': nodes.data['fea']*200}
     def msg_func(edges):
         return {'m': edges.src['res']}
     def apply_node_func2(nodes):
