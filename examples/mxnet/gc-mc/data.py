@@ -473,7 +473,9 @@ class MovieLens(object):
                 sup = sp.csr_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)).eliminate_zeros()
             else:
                 sup = sp.csr_matrix(degree_u_inv.dot(adj)).eliminate_zeros()
+            print(sup)
             support_sp_l.append(sup.tocoo())
+
         return support_sp_l
 
 if __name__ == '__main__':
