@@ -470,7 +470,10 @@ class MovieLens(object):
         support_sp_l = []
         for adj in adj_unnormalized_l:
             if symmetric:
-                sup = sp.csr_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)).eliminate_zeros()
+                sup = sp.csr_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat))
+                print("sup", sup)
+                print("sup.nonzero()", sup.nonzero())
+                sup = sup.eliminate_zeros()
             else:
                 sup = sp.csr_matrix(degree_u_inv.dot(adj)).eliminate_zeros()
             print(sup)
