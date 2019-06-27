@@ -467,12 +467,13 @@ class MovieLens(object):
         degree_v_inv_sqrt_mat = sp.diags([degree_v_inv_sqrt], [0])
 
         degree_u_inv = degree_u_inv_sqrt_mat.dot(degree_u_inv_sqrt_mat)
-
-        if symmetric:
-            support_sp_l = [sp.coo_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)) for adj in adj_unnormalized_l]
-
-        else:
-            support_sp_l = [sp.coo_matrix(degree_u_inv.dot(adj)) for adj in adj_unnormalized_l]
+        support_sp_l = []
+        for adj in adj_unnormalized_l:
+            if symmetric:
+                sup = sp.csr_matrix(degree_u_inv_sqrt_mat.dot(adj).dot(degree_v_inv_sqrt_mat)).eliminate_zeros()
+            else:
+                sup = sp.csr_matrix(degree_u_inv.dot(adj)).eliminate_zeros()
+            support_sp_l.append(sup.tocoo())
         return support_sp_l
 
 if __name__ == '__main__':
