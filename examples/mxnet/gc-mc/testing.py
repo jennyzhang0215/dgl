@@ -101,8 +101,8 @@ def gen_bipartite():
 
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
-    g['user'].apply_nodes(apply_node_func)
-    print("g['user'].ndata['res']", g['user'].ndata['res'])
+    g1['user'].apply_nodes(apply_node_func)
+    print("g1['user'].ndata['res']", g1['user'].ndata['res'])
 
     """
     print("For g1 ......")
