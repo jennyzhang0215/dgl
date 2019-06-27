@@ -68,7 +68,7 @@ class MultiLinkGCNAggregator(Block):
             for i in range(self._num_links): ## 5
                 #print("edges.src['fea']", edges.src['fea'])
                 #msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-                print("edges.data['support{}'.format(i)]", edges.data['support{}'.format(i)])
+                print("edges.data['support{}'".format(i)+"]", edges.data['support{}'.format(i)])
                 msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
                             * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
             if self._accum == "sum":
