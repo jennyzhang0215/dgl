@@ -92,7 +92,7 @@ class MultiLinkGCNAggregator(Block):
         for i in range(self._num_links):
             src_dst_g.send_and_recv(src_dst_g.edges(),
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
-                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)) )
+                                    fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
         src_dst_g[self._dst_key].apply_nodes(accum_node_func)
 
 
