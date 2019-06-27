@@ -56,7 +56,7 @@ class MultiLinkGCNAggregator(Block):
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
                 w = self.src_dst_weights.data()[i] ## agg_units * #nodes
-                Ndata['w{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
+                Ndata['fea{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
         def dst_node_update(nodes):
             Ndata = {}
