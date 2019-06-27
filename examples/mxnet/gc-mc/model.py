@@ -86,7 +86,7 @@ class MultiLinkGCNAggregator(Block):
         def accum_node_func(nodes):
             accums = []
             for i in range(self._num_links):
-                accums.append(nodes.data['accum{}'])
+                accums.append(nodes.data['accum{}'.format(i)])
             if self._accum == "sum":
                 accum = mx.nd.add_n(*accums)
             elif self._accum == "stack":
