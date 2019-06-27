@@ -101,6 +101,9 @@ def gen_bipartite():
 
     g1 = g['user', 'item', 'rating']
     g2 = g['item', 'user', 'rating']
+    g2.ndata.update({{'res' : ft, 'a1' : a1, 'a2' : a2}})
+
+
     print("For g1 ......")
     g1.send_and_recv(g1.edges(),
                      msg_func, fn.sum("m", "accum"), apply_node_func)
