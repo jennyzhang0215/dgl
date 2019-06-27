@@ -54,13 +54,13 @@ class MultiLinkGCNAggregator(Block):
             Ndata = {}
             for i in range(self._num_links):
                 # w = kwargs['weight{}'.format(i)]
-                w = self.src_dst_weights.data()[i] ## 500 * #nodes
+                w = self.src_dst_weights.data()[i] ## agg_units * #nodes
                 Ndata['w{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
         def dst_node_update(nodes):
             Ndata = {}
             for i in range(self._num_links):
-                w = self.dst_src_weights.data()[i] ## 500 * #nodes
+                w = self.dst_src_weights.data()[i] ## agg_units * #nodes
                 Ndata['w{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
 
@@ -68,8 +68,9 @@ class MultiLinkGCNAggregator(Block):
             msgs = []
             for i in range(self._num_links): ## 5
                 print("edges.src['fea']", edges.src['fea'])
-                msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-                            * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
+                msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
+                # msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
+                #             * edges.src['w{}'.format(i)]) ## #edge * (100 * 5)
             if self._accum == "sum":
                 mess_func = {'msg': mx.nd.add_n(*msgs)}
             elif self._accum == "stack":
