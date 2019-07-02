@@ -229,7 +229,7 @@ def config():
     parser.add_argument('--gcn_dropout', type=float, default=0.7)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
     parser.add_argument('--gcn_agg_units', type=int, default=500)
-    parser.add_argument('--gcn_agg_accum', type=str, default="stack")
+    parser.add_argument('--gcn_agg_accum', type=str, default="sum")
     # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
     # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
     # parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
