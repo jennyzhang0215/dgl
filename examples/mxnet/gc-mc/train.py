@@ -11,7 +11,6 @@ from model import GCMCLayer, BiDecoder, InnerProductLayer
 from utils import get_activation, parse_ctx, gluon_net_info, gluon_total_param_num, params_clip_global_norm, \
     logging_config, MetricLogger
 from mxnet.gluon import nn, HybridBlock, Block
-import time
 
 class Net(Block):
     def __init__(self, args, **kwargs):
@@ -217,7 +216,7 @@ def config():
     parser.add_argument('--save_id', type=int, help='The saving log id')
     parser.add_argument('--silent', action='store_true')
 
-    parser.add_argument('--data_name', default='ml-1m', type=str,
+    parser.add_argument('--data_name', default='ml-100k', type=str,
                         help='The dataset name: ml-100k, ml-1m, ml-10m')
     parser.add_argument('--data_test_ratio', type=float, default=0.1) ## for ml-100k the test ration is 0.2
     parser.add_argument('--data_valid_ratio', type=float, default=0.1)
@@ -229,15 +228,10 @@ def config():
     parser.add_argument('--gcn_dropout', type=float, default=0.7)
     parser.add_argument('--gcn_agg_norm_symm', type=bool, default=True)
     parser.add_argument('--gcn_agg_units', type=int, default=500)
-    parser.add_argument('--gcn_agg_accum', type=str, default="sum")
-    # parser.add_argument('--gcn_agg_share_weights', type=bool, default=True)
-    # parser.add_argument('--gcn_agg_ordinal_share', type=bool, default=False)
-    # parser.add_argument('--gcn_out_accum_self', type=bool, default=False)
-    # parser.add_argument('--gcn_out_share_weights', type=bool, default=True)
+    parser.add_argument('--gcn_agg_accum', type=str, default="stack")
     parser.add_argument('--gcn_out_units', type=int, default=75)
-    # parser.add_argument('--gcn_out_accum', type=str, default="stack")
 
-    parser.add_argument('--gen_r_use_classification', type=bool, default=False)
+    parser.add_argument('--gen_r_use_classification', type=bool, default=True)
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
     # parser.add_argument('--train_rating_batch_size', type=int, default=10000)
