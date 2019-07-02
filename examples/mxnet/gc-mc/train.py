@@ -241,7 +241,7 @@ def config():
     parser.add_argument('--gen_r_num_basis_func', type=int, default=2)
 
     # parser.add_argument('--train_rating_batch_size', type=int, default=10000)
-    parser.add_argument('--train_max_iter', type=int, default=500)
+    parser.add_argument('--train_max_iter', type=int, default=2000)
     parser.add_argument('--train_log_interval', type=int, default=1)
     parser.add_argument('--train_valid_interval', type=int, default=1)
     parser.add_argument('--train_optimizer', type=str, default="adam")
