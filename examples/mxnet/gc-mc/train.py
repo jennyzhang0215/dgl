@@ -165,7 +165,7 @@ def train(args):
         if iter_idx % args.train_log_interval == 0:
             train_loss_logger.log(iter=iter_idx,
                                   loss=count_loss/(iter_idx+1), rmse=count_rmse/count_num)
-            logging_str = "Iter={}, gnorm={:.3f}, loss={:.4f}, rmse={:4f}".format(
+            logging_str = "Iter={}, gnorm={:.3f}, loss={:.4f}, rmse={:.4f}".format(
                 iter_idx, avg_gnorm/args.train_log_interval, count_loss/iter_idx, count_rmse/count_num)
             avg_gnorm = 0
             count_rmse = 0
