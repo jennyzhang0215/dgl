@@ -132,11 +132,12 @@ class MovieLens(object):
         filtered_valid_movie = []
         filtered_valid_values = []
         for i in range(valid_rating_pairs[0].size):
-            if valid_rating_pairs[0][i]  in train_rating_pairs[0] and \
-                valid_rating_pairs[1][i] not in train_rating_pairs[1]:
+            if valid_rating_pairs[0][i] in train_rating_pairs[0] and \
+                valid_rating_pairs[1][i] in train_rating_pairs[1]:
                 filtered_valid_user.append(test2train_g_node_id_map[self.name_user][valid_rating_pairs[0][i]])
                 filtered_valid_movie.append(test2train_g_node_id_map[self.name_movie][valid_rating_pairs[1][i]])
                 filtered_valid_values.append(valid_rating_values[i])
+        print("Filtered {} validation node pairs".format(valid_rating_pairs[0].size - len(filtered_valid_user)))
 
         self.valid_rating_pairs = (np.array(filtered_valid_user, dtype=np.int64),
                                    np.array(filtered_valid_movie, dtype=np.int64))
