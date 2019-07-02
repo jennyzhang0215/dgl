@@ -110,13 +110,14 @@ class MovieLens(object):
         self.train_graph.copy_from_parent()
 
         test2train_g_node_id_map = {}
+        print("Parent ids in the testing graph")
         for node_type in [self.name_user, self.name_movie]:
             test2train_g_node_id_map[node_type] = {}
             p_nids = self.train_graph.parent_nid(node_type).asnumpy()
-            print("{}: {} nodes".format(node_type, p_nids.size))
+            print("\t{}: {} nodes".format(node_type, p_nids.size))
             for idx, p_nid in enumerate(p_nids):
                 test2train_g_node_id_map[node_type][p_nid] = idx
-        print("test2train_g_node_id_map", test2train_g_node_id_map)
+        #print("test2train_g_node_id_map", test2train_g_node_id_map)
 
         self.train_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
                                                      list(train_rating_pairs[0]))),
@@ -124,24 +125,23 @@ class MovieLens(object):
                                    np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
                                                      list(train_rating_pairs[1]))),
                                             dtype=np.int64))
-        print("original train_rating_pairs", train_rating_pairs)
-        print("train_G  train_rating_pairs", self.train_rating_pairs)
         self.train_rating_values = train_rating_values
 
-        print("original valid_rating_pairs", valid_rating_pairs)
-        for id in valid_rating_pairs[0]:
-            if id not in train_rating_pairs[0]:
-                print("User id {} not in training graph".format(id))
-        for id in valid_rating_pairs[1]:
-            if id not in train_rating_pairs[1]:
-                print("Movie id {} not in training graph".format(id))
-        self.valid_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
-                                                     list(valid_rating_pairs[0]))),
-                                            dtype=np.int64),
-                                   np.array(list(map(test2train_g_node_id_map[self.name_movie].get,
-                                                     list(valid_rating_pairs[1]))),
-                                            dtype=np.int64))
-        self.valid_rating_values = valid_rating_values
+
+        filtered_valid_user = []
+        filtered_valid_movie = []
+        filtered_valid_values = []
+        for i in range(valid_rating_pairs.shape[1]):
+            if valid_rating_pairs[0][i]  in train_rating_pairs[0] and \
+                valid_rating_pairs[1][i] not in train_rating_pairs[1]:
+                filtered_valid_user.append(test2train_g_node_id_map[self.name_user][valid_rating_pairs[0][i]])
+                filtered_valid_movie.append(test2train_g_node_id_map[self.name_movie][valid_rating_pairs[1][i]])
+                filtered_valid_values.append(valid_rating_values[i])
+
+        self.valid_rating_pairs = (np.array(filtered_valid_user, dtype=np.int64),
+                                   np.array(filtered_valid_movie, dtype=np.int64))
+        self.valid_rating_values = np.array(filtered_valid_values, dtype=np.float32)
+
 
         #self.uv_train_graph = self.uv_test_graph.edge_subgraph(self.train_rating_pairs)
         print("Train graph: \t#user:{}\t#movie:{}\t#pairs:{}".format(
