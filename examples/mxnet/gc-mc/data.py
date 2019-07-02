@@ -131,7 +131,7 @@ class MovieLens(object):
         filtered_valid_user = []
         filtered_valid_movie = []
         filtered_valid_values = []
-        for i in range(valid_rating_pairs.shape[1]):
+        for i in range(valid_rating_pairs[0].size):
             if valid_rating_pairs[0][i]  in train_rating_pairs[0] and \
                 valid_rating_pairs[1][i] not in train_rating_pairs[1]:
                 filtered_valid_user.append(test2train_g_node_id_map[self.name_user][valid_rating_pairs[0][i]])
