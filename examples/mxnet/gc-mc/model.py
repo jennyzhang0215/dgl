@@ -22,39 +22,19 @@ class MultiLinkGCNAggregator(Block):
         with self.name_scope():
             self.dropout = nn.Dropout(dropout_rate) ### dropout before feeding the out layer
             self.act = get_activation(act)
-            ### TODO kwargs only be supported in hybridBlock
-            # for i in range(num_links):
-                # self.__setattr__('weight{}'.format(i),
-                #                  self.params.get('weight{}'.format(i),
-                #                                  shape=(units, 0),
-                #                                  dtype=np.float32,
-                #                                  allow_deferred_init=True))
-                # self.__setattr__('bias{}'.format(i),
-                #                  self.params.get('bias{}'.format(i),
-                #                                  shape=(units,),
-                #                                  dtype=np.float32,
-                #                                  init='zeros',
-                #                                  allow_deferred_init=True))
             self.src_dst_weights = self.params.get('src_dst_weight',
-                                           shape=(num_links, self._units, src_in_units),
-                                           dtype=np.float32,
-                                           allow_deferred_init=True)
+                                                   shape=(num_links, self._units, src_in_units),
+                                                   dtype=np.float32,
+                                                   allow_deferred_init=True)
             self.dst_src_weights = self.params.get('dst_dst_weight',
                                                    shape=(num_links, self._units, dst_in_units),
                                                    dtype=np.float32,
                                                    allow_deferred_init=True)
-            # self.biases = self.params.get('bias',
-            #                               shape=(num_links, units, ),
-            #                               dtype=np.float32,
-            #                               init='zeros',
-            #                               allow_deferred_init=True)
 
     def forward(self, g):
-
         def src_node_update(nodes):
             Ndata = {}
             for i in range(self._num_links):
-                # w = kwargs['weight{}'.format(i)]
                 w = self.src_dst_weights.data()[i] ## agg_units * #nodes
                 Ndata['fea{}'.format(i)] = mx.nd.dot(self.dropout(nodes.data['fea']), w, transpose_b=True)
             return Ndata
@@ -67,21 +47,6 @@ class MultiLinkGCNAggregator(Block):
 
         g[self._src_key].apply_nodes(src_node_update)
         g[self._dst_key].apply_nodes(dst_node_update)
-        # def msg_func(edges):
-        #     msgs = []
-        #     for i in range(self._num_links):  ## 5
-        #         # print("edges.src['fea']", edges.src['fea'])
-        #         # msgs.append(edges.data['support{}'.format(i)] * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-        #         print("edges.data['support{}'".format(i) + "]", edges.data['support{}'.format(i)])
-        #         msgs.append(mx.nd.reshape(edges.data['support{}'.format(i)], shape=(-1, 1)) \
-        #                     * edges.src['w{}'.format(i)])  ## #edge * (100 * 5)
-        #     if self._accum == "sum":
-        #         mess_func = {'msg': mx.nd.add_n(*msgs)}
-        #     elif self._accum == "stack":
-        #         mess_func = {'msg': mx.nd.concat(*msgs, dim=1)}
-        #     else:
-        #         raise NotImplementedError
-        #     return mess_func
 
         def accum_node_func(nodes):
             accums = []
@@ -98,14 +63,7 @@ class MultiLinkGCNAggregator(Block):
         src_dst_g = g[self._src_key, self._dst_key, 'rating']
         dst_src_g = g[self._dst_key, self._src_key, 'rating']
 
-        ##print("g[self._src_key].ndata['w0']", g[self._src_key].ndata['w0'])
         for i in range(self._num_links):
-            # print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
-            # # filter edges
-            # src_dst_g.edata['support{}'.format(i)] = mx.nd.reshape(src_dst_g.edata['support{}'.format(i)],
-            #                                                        shape=(-1, 1))
-            # print("src_dst_g.edata['support{}'.format(i)]", src_dst_g.edata['support{}'.format(i)])
-
             src_dst_g.send_and_recv(src_dst_g.edges(), ### here we can filter edges
                                     fn.src_mul_edge('fea{}'.format(i), 'support{}'.format(i), 'msg{}'.format(i)),
                                     fn.sum('msg{}'.format(i), 'accum{}'.format(i)), None)
