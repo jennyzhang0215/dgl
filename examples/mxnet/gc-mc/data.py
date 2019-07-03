@@ -110,14 +110,12 @@ class MovieLens(object):
         self.train_graph.copy_from_parent()
 
         test2train_g_node_id_map = {}
-        print("Parent ids in the testing graph")
         for node_type in [self.name_user, self.name_movie]:
             test2train_g_node_id_map[node_type] = {}
             p_nids = self.train_graph.parent_nid(node_type).asnumpy()
-            print("\t{}: {} nodes".format(node_type, p_nids.size))
+            #print("\t{}: {} nodes".format(node_type, p_nids.size))
             for idx, p_nid in enumerate(p_nids):
                 test2train_g_node_id_map[node_type][p_nid] = idx
-        #print("test2train_g_node_id_map", test2train_g_node_id_map)
 
         self.train_rating_pairs = (np.array(list(map(test2train_g_node_id_map[self.name_user].get,
                                                      list(train_rating_pairs[0]))),
@@ -181,13 +179,6 @@ class MovieLens(object):
                                       (self.name_movie, self.name_user, self.name_edge): movie_user_ratings_coo},
             readonly=True)
 
-        # vu_graph = dgl.DGLBipartiteGraph(
-        #     metagraph=nx.MultiGraph([('movie', 'user', 'rating')]),
-        #     number_of_nodes_by_type={'user': self._num_user,
-        #                              'movie': self._num_movie},
-        #     edge_connections_by_type={('movie', 'user', 'rating'): movie_user_ratings_coo},
-        #     # node_frame={"user": self.user_features, "movie": self.movie_features},
-        #     readonly=True)
         graph[self.name_user, self.name_movie, self.name_edge].edata['R'] \
             = mx.nd.array(rating_values, ctx=self._ctx, dtype=np.float32)
 
