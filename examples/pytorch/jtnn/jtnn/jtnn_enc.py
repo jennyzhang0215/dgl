@@ -1,13 +1,8 @@
 import torch
 import torch.nn as nn
-from collections import deque
-from .mol_tree import Vocab
 from .nnutils import GRUUpdate, cuda
-import itertools
-import networkx as nx
-from dgl import batch, unbatch, bfs_edges_generator
+from dgl import batch, bfs_edges_generator
 import dgl.function as DGLF
-from .line_profiler_integration import profile
 import numpy as np
 
 MAX_NB = 8
@@ -15,7 +10,7 @@ MAX_NB = 8
 def level_order(forest, roots):
     edges = bfs_edges_generator(forest, roots)
     _, leaves = forest.find_edges(edges[-1])
-    edges_back = bfs_edges_generator(forest, roots, reversed=True)
+    edges_back = bfs_edges_generator(forest, roots, reverse=True)
     yield from reversed(edges_back)
     yield from edges
 

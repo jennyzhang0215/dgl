@@ -2,15 +2,16 @@
 from __future__ import absolute_import
 
 from collections import defaultdict
+from contextlib import contextmanager
 import networkx as nx
 
 import dgl
-from .base import ALL, is_all, DGLError
+from .base import ALL, is_all, DGLError, dgl_warning
 from . import backend as F
 from . import init
-from .frame import FrameRef, Frame
-from .graph_index import create_graph_index
-from .runtime import ir, scheduler, Runtime
+from .frame import FrameRef, Frame, Scheme, sync_frame_initializer
+from . import graph_index
+from .runtime import ir, scheduler, Runtime, GraphAdapter
 from . import utils
 from .view import NodeView, EdgeView
 from .udf import NodeBatch, EdgeBatch
@@ -37,11 +38,6 @@ class DGLBaseGraph(object):
     """
     def __init__(self, graph):
         self._graph = graph
-
-    @property
-    def c_handle(self):
-        """The C handle for the graph."""
-        return self._graph._handle
 
     def number_of_nodes(self):
         """Return the number of nodes in the graph.
@@ -756,16 +752,26 @@ class DGLGraph(DGLBaseGraph):
     Node and edge features are stored as a dictionary from the feature name
     to the feature data (in tensor).
 
+    DGL graph accepts graph data of multiple formats:
+
+    * NetworkX graph,
+    * scipy matrix,
+    * DGLGraph.
+
+    If the input graph data is DGLGraph, the constructed DGLGraph only contains
+    its graph index.
+
     Parameters
     ----------
     graph_data : graph data, optional
-        Data to initialize graph. Same as networkx's semantics.
+        Data to initialize graph.
     node_frame : FrameRef, optional
         Node feature storage.
     edge_frame : FrameRef, optional
         Edge feature storage.
     multigraph : bool, optional
-        Whether the graph would be a multigraph (default: False)
+        Whether the graph would be a multigraph. If none, the flag will be determined
+        by scanning the whole graph. (default: None)
     readonly : bool, optional
         Whether the graph structure is read-only (default: False).
 
@@ -894,10 +900,20 @@ class DGLGraph(DGLBaseGraph):
                  graph_data=None,
                  node_frame=None,
                  edge_frame=None,
-                 multigraph=False,
-                 readonly=False):
+                 multigraph=None,
+                 readonly=False,
+                 sort_csr=False):
         # graph
-        super(DGLGraph, self).__init__(create_graph_index(graph_data, multigraph, readonly))
+        if isinstance(graph_data, DGLGraph):
+            gidx = graph_data._graph
+            if sort_csr:
+                gidx.sort_csr()
+        else:
+            gidx = graph_index.create_graph_index(graph_data, multigraph, readonly)
+            if sort_csr:
+                gidx.sort_csr()
+        super(DGLGraph, self).__init__(gidx)
+
         # node and edge frame
         if node_frame is None:
             self._node_frame = FrameRef(Frame(num_rows=self.number_of_nodes()))
@@ -909,7 +925,7 @@ class DGLGraph(DGLBaseGraph):
             self._edge_frame = edge_frame
         # message indicator:
         # if self._msg_index[eid] == 1, then edge eid has message
-        self._msg_index = utils.zero_index(size=self.number_of_edges())
+        self._msg_index = None
         # message frame
         self._msg_frame = FrameRef(Frame(num_rows=self.number_of_edges()))
         # set initializer for message frame
@@ -919,6 +935,14 @@ class DGLGraph(DGLBaseGraph):
         self._reduce_func = None
         self._apply_node_func = None
         self._apply_edge_func = None
+
+    def _get_msg_index(self):
+        if self._msg_index is None:
+            self._msg_index = utils.zero_index(size=self.number_of_edges())
+        return self._msg_index
+
+    def _set_msg_index(self, index):
+        self._msg_index = index
 
     def add_nodes(self, num, data=None):
         """Add multiple new nodes.
@@ -1025,7 +1049,8 @@ class DGLGraph(DGLBaseGraph):
         else:
             self._edge_frame.append(data)
         # resize msg_index and msg_frame
-        self._msg_index = self._msg_index.append_zeros(1)
+        if self._msg_index is not None:
+            self._msg_index = self._msg_index.append_zeros(1)
         self._msg_frame.add_rows(1)
 
     def add_edges(self, u, v, data=None):
@@ -1085,8 +1110,139 @@ class DGLGraph(DGLBaseGraph):
         else:
             self._edge_frame.append(data)
         # initialize feature placeholder for messages
-        self._msg_index = self._msg_index.append_zeros(num)
+        if self._msg_index is not None:
+            self._msg_index = self._msg_index.append_zeros(num)
         self._msg_frame.add_rows(num)
+
+    def remove_nodes(self, vids):
+        """Remove multiple nodes, edges that have connection with these nodes would also be removed.
+
+        Parameters
+        ----------
+        vids: list, tensor
+            The id of nodes to remove.
+
+        Notes
+        -----
+        The nodes and edges in the graph would be re-indexed after the removal.
+
+        Examples
+        --------
+        The following example uses PyTorch backend.
+
+        >>> import torch as th
+        >>> G = dgl.DGLGraph()
+        >>> G.add_nodes(5, {'x': th.arange(5) * 2})
+        >>> G.add_edges([0, 1, 2, 3, 4], [1, 2, 3, 4, 0], {'x': th.arange(15).view(5, 3)})
+        >>> G.nodes()
+        tensor([0, 1, 2, 3, 4])
+        >>> G.edges()
+        (tensor([0, 1, 2, 3, 4]), tensor([1, 2, 3, 4, 0]))
+        >>> G.ndata['x']
+        tensor([0, 2, 4, 6, 8])
+        >>> G.edata['x']
+        tensor([[ 0,  1,  2],
+                [ 3,  4,  5],
+                [ 6,  7,  8],
+                [ 9, 10, 11],
+                [12, 13, 14]])
+        >>> G.remove_nodes([2, 3])
+        >>> G.nodes()
+        tensor([0, 1, 2]
+        >>> G.edges()
+        (tensor([0, 2]), tensor([1, 0]))
+        >>> G.ndata['x']
+        tensor([0, 2, 8])
+        >>> G.edata['x']
+        tensor([[ 0,  1,  2],
+                [12, 13, 14]])
+
+        See Also
+        --------
+        add_nodes
+        add_edges
+        remove_edges
+        """
+        if self.is_readonly:
+            raise DGLError("remove_nodes is not supported by read-only graph.")
+        induced_nodes = utils.set_diff(utils.toindex(self.nodes()), utils.toindex(vids))
+        sgi = self._graph.node_subgraph(induced_nodes)
+
+        if isinstance(self._node_frame, FrameRef):
+            self._node_frame = FrameRef(Frame(self._node_frame[sgi.induced_nodes]))
+        else:
+            self._node_frame = FrameRef(self._node_frame, sgi.induced_nodes)
+
+        if isinstance(self._edge_frame, FrameRef):
+            self._edge_frame = FrameRef(Frame(self._edge_frame[sgi.induced_edges]))
+        else:
+            self._edge_frame = FrameRef(self._edge_frame, sgi.induced_edges)
+
+        self._graph = sgi.graph
+
+    def remove_edges(self, eids):
+        """Remove multiple edges.
+
+        Parameters
+        ----------
+        eids: list, tensor
+            The id of edges to remove.
+
+        Notes
+        -----
+        The nodes and edges in the graph would be re-indexed after the removal.
+
+        Examples
+        --------
+        The following example uses PyTorch backend.
+
+        >>> import torch as th
+        >>> G = dgl.DGLGraph()
+        >>> G.add_nodes(5)
+        >>> G.add_edges([0, 1, 2, 3, 4], [1, 2, 3, 4, 0], {'x': th.arange(15).view(5, 3)})
+        >>> G.nodes()
+        tensor([0, 1, 2, 3, 4])
+        >>> G.edges()
+        (tensor([0, 1, 2, 3, 4]), tensor([1, 2, 3, 4, 0]))
+        >>> G.edata['x']
+        tensor([[ 0,  1,  2],
+                [ 3,  4,  5],
+                [ 6,  7,  8],
+                [ 9, 10, 11],
+                [12, 13, 14]])
+        >>> G.remove_edges([1, 2])
+        >>> G.nodes()
+        tensor([0, 1, 2, 3, 4])
+        >>> G.edges()
+        (tensor([0, 3, 4]), tensor([1, 4, 0]))
+        >>> G.edata['x']
+        tensor([[ 0,  1,  2],
+                [ 9, 10, 11],
+                [12, 13, 14]])
+
+        See Also
+        --------
+        add_nodes
+        add_edges
+        remove_nodes
+        """
+        if self.is_readonly:
+            raise DGLError("remove_edges is not supported by read-only graph.")
+        induced_edges = utils.set_diff(
+            utils.toindex(range(self.number_of_edges())), utils.toindex(eids))
+        sgi = self._graph.edge_subgraph(induced_edges, preserve_nodes=True)
+
+        if isinstance(self._node_frame, FrameRef):
+            self._node_frame = FrameRef(Frame(self._node_frame[sgi.induced_nodes]))
+        else:
+            self._node_frame = FrameRef(self._node_frame, sgi.induced_nodes)
+
+        if isinstance(self._edge_frame, FrameRef):
+            self._edge_frame = FrameRef(Frame(self._edge_frame[sgi.induced_edges]))
+        else:
+            self._edge_frame = FrameRef(self._edge_frame, sgi.induced_edges)
+
+        self._graph = sgi.graph
 
     def clear(self):
         """Remove all nodes and edges, as well as their features, from the
@@ -1110,7 +1266,7 @@ class DGLGraph(DGLBaseGraph):
         self._graph.clear()
         self._node_frame.clear()
         self._edge_frame.clear()
-        self._msg_index = utils.zero_index(0)
+        self._msg_index = None
         self._msg_frame.clear()
 
     def clear_cache(self):
@@ -1214,10 +1370,9 @@ class DGLGraph(DGLBaseGraph):
             nx_graph = nx_graph.to_directed()
 
         self.clear()
-        self._graph.from_networkx(nx_graph)
+        self._graph = graph_index.from_networkx(nx_graph, self.is_readonly)
         self._node_frame.add_rows(self.number_of_nodes())
         self._edge_frame.add_rows(self.number_of_edges())
-        self._msg_index = utils.zero_index(self.number_of_edges())
         self._msg_frame.add_rows(self.number_of_edges())
 
         # copy attributes
@@ -1281,10 +1436,9 @@ class DGLGraph(DGLBaseGraph):
         >>> g.from_scipy_sparse_matrix(a)
         """
         self.clear()
-        self._graph.from_scipy_sparse_matrix(spmat)
+        self._graph = graph_index.from_scipy_sparse_matrix(spmat, self.is_readonly)
         self._node_frame.add_rows(self.number_of_nodes())
         self._edge_frame.add_rows(self.number_of_edges())
-        self._msg_index = utils.zero_index(self.number_of_edges())
         self._msg_frame.add_rows(self.number_of_edges())
 
     def node_attr_schemes(self):
@@ -1556,6 +1710,50 @@ class DGLGraph(DGLBaseGraph):
         """
         return self.edges[:].data
 
+
+    def init_ndata(self, ndata_name, shape, dtype, ctx=F.cpu()):
+        """Create node embedding.
+
+        It first creates the node embedding in the server and maps it to the current process
+        with shared memory.
+
+        Parameters
+        ----------
+        ndata_name : string
+            The name of node embedding
+        shape : tuple
+            The shape of the node embedding
+        dtype : string
+            The data type of the node embedding. The currently supported data types
+            are "float32" and "int32".
+        ctx : DGLContext
+            The column context.
+        """
+        scheme = Scheme(tuple(shape[1:]), F.data_type_dict[dtype])
+        self._node_frame._frame.add_column(ndata_name, scheme, ctx)
+
+    def init_edata(self, edata_name, shape, dtype, ctx=F.cpu()):
+        """Create edge embedding.
+
+        It first creates the edge embedding in the server and maps it to the current process
+        with shared memory.
+
+        Parameters
+        ----------
+        edata_name : string
+            The name of edge embedding
+        shape : tuple
+            The shape of the edge embedding
+        dtype : string
+            The data type of the edge embedding. The currently supported data types
+            are "float32" and "int32".
+        ctx : DGLContext
+            The column context.
+        """
+        scheme = Scheme(tuple(shape[1:]), F.data_type_dict[dtype])
+        self._edge_frame._frame.add_column(edata_name, scheme, ctx)
+
+
     def set_n_repr(self, data, u=ALL, inplace=False):
         """Set node(s) representation.
 
@@ -1692,7 +1890,7 @@ class DGLGraph(DGLBaseGraph):
             self._edge_frame.update_rows(eid, data, inplace=inplace)
 
     def get_e_repr(self, edges=ALL):
-        """Get node(s) representation.
+        """Get edge(s) representation.
 
         Parameters
         ----------
@@ -1876,9 +2074,9 @@ class DGLGraph(DGLBaseGraph):
         else:
             v = utils.toindex(v)
         with ir.prog() as prog:
-            scheduler.schedule_apply_nodes(graph=self,
-                                           v=v,
+            scheduler.schedule_apply_nodes(v=v,
                                            apply_func=func,
+                                           node_frame=self._node_frame,
                                            inplace=inplace)
             Runtime.run(prog)
 
@@ -1933,7 +2131,7 @@ class DGLGraph(DGLBaseGraph):
         assert func is not None
 
         if is_all(edges):
-            u, v, _ = self._graph.edges()
+            u, v, _ = self._graph.edges('eid')
             eid = utils.toindex(slice(0, self.number_of_edges()))
         elif isinstance(edges, tuple):
             u, v = edges
@@ -1946,12 +2144,7 @@ class DGLGraph(DGLBaseGraph):
             u, v, _ = self._graph.find_edges(eid)
 
         with ir.prog() as prog:
-            scheduler.schedule_apply_edges(graph=self,
-                                           u=u,
-                                           v=v,
-                                           eid=eid,
-                                           apply_func=func,
-                                           inplace=inplace)
+            scheduler.schedule_apply_edges(AdaptedDGLGraph(self), u, v, eid, func, inplace)
             Runtime.run(prog)
 
     def group_apply_edges(self, group_by, func, edges=ALL, inplace=False):
@@ -2028,10 +2221,8 @@ class DGLGraph(DGLBaseGraph):
             u, v, _ = self._graph.find_edges(eid)
 
         with ir.prog() as prog:
-            scheduler.schedule_group_apply_edge(graph=self,
-                                                u=u,
-                                                v=v,
-                                                eid=eid,
+            scheduler.schedule_group_apply_edge(graph=AdaptedDGLGraph(self),
+                                                u=u, v=v, eid=eid,
                                                 apply_func=func,
                                                 group_by=group_by,
                                                 inplace=inplace)
@@ -2095,7 +2286,7 @@ class DGLGraph(DGLBaseGraph):
             return
 
         with ir.prog() as prog:
-            scheduler.schedule_send(graph=self, u=u, v=v, eid=eid,
+            scheduler.schedule_send(graph=AdaptedDGLGraph(self), u=u, v=v, eid=eid,
                                     message_func=message_func)
             Runtime.run(prog)
 
@@ -2194,7 +2385,7 @@ class DGLGraph(DGLBaseGraph):
             return
 
         with ir.prog() as prog:
-            scheduler.schedule_recv(graph=self,
+            scheduler.schedule_recv(graph=AdaptedDGLGraph(self),
                                     recv_nodes=v,
                                     reduce_func=reduce_func,
                                     apply_func=apply_node_func,
@@ -2302,7 +2493,7 @@ class DGLGraph(DGLBaseGraph):
             return
 
         with ir.prog() as prog:
-            scheduler.schedule_snr(graph=self,
+            scheduler.schedule_snr(graph=AdaptedDGLGraph(self),
                                    edge_tuples=(u, v, eid),
                                    message_func=message_func,
                                    reduce_func=reduce_func,
@@ -2405,7 +2596,7 @@ class DGLGraph(DGLBaseGraph):
         if len(v) == 0:
             return
         with ir.prog() as prog:
-            scheduler.schedule_pull(graph=self,
+            scheduler.schedule_pull(graph=AdaptedDGLGraph(self),
                                     pull_nodes=v,
                                     message_func=message_func,
                                     reduce_func=reduce_func,
@@ -2502,7 +2693,7 @@ class DGLGraph(DGLBaseGraph):
         if len(u) == 0:
             return
         with ir.prog() as prog:
-            scheduler.schedule_push(graph=self,
+            scheduler.schedule_push(graph=AdaptedDGLGraph(self),
                                     u=u,
                                     message_func=message_func,
                                     reduce_func=reduce_func,
@@ -2549,7 +2740,7 @@ class DGLGraph(DGLBaseGraph):
         assert reduce_func is not None
 
         with ir.prog() as prog:
-            scheduler.schedule_update_all(graph=self,
+            scheduler.schedule_update_all(graph=AdaptedDGLGraph(self),
                                           message_func=message_func,
                                           reduce_func=reduce_func,
                                           apply_func=apply_node_func)
@@ -2758,7 +2949,7 @@ class DGLGraph(DGLBaseGraph):
         from . import subgraph
         induced_nodes = utils.toindex(nodes)
         sgi = self._graph.node_subgraph(induced_nodes)
-        return subgraph.DGLSubGraph(self, sgi.induced_nodes, sgi.induced_edges, sgi)
+        return subgraph.DGLSubGraph(self, sgi)
 
     def subgraphs(self, nodes):
         """Return a list of subgraphs, each induced in the corresponding given
@@ -2786,10 +2977,9 @@ class DGLGraph(DGLBaseGraph):
         from . import subgraph
         induced_nodes = [utils.toindex(n) for n in nodes]
         sgis = self._graph.node_subgraphs(induced_nodes)
-        return [subgraph.DGLSubGraph(self, sgi.induced_nodes, sgi.induced_edges, sgi)
-                for sgi in sgis]
+        return [subgraph.DGLSubGraph(self, sgi) for sgi in sgis]
 
-    def edge_subgraph(self, edges):
+    def edge_subgraph(self, edges, preserve_nodes=False):
         """Return the subgraph induced on given edges.
 
         Parameters
@@ -2797,6 +2987,10 @@ class DGLGraph(DGLBaseGraph):
         edges : list, or iterable
             An edge ID array to construct subgraph.
             All edges must exist in the subgraph.
+        preserve_nodes : bool
+            Indicates whether to preserve all nodes or not.
+            If true, keep the nodes which have no edge connected in the subgraph;
+            If false, all nodes without edge connected to it would be removed.
 
         Returns
         -------
@@ -2825,6 +3019,15 @@ class DGLGraph(DGLBaseGraph):
         tensor([0, 1, 4])
         >>> SG.parent_eid
         tensor([0, 4])
+        >>> SG = G.edge_subgraph([0, 4], preserve_nodes=True)
+        >>> SG.nodes()
+        tensor([0, 1, 2, 3, 4])
+        >>> SG.edges()
+        (tensor([0, 4]), tensor([1, 0]))
+        >>> SG.parent_nid
+        tensor([0, 1, 2, 3, 4])
+        >>> SG.parent_eid
+        tensor([0, 4])
 
         See Also
         --------
@@ -2833,10 +3036,10 @@ class DGLGraph(DGLBaseGraph):
         """
         from . import subgraph
         induced_edges = utils.toindex(edges)
-        sgi = self._graph.edge_subgraph(induced_edges)
-        return subgraph.DGLSubGraph(self, sgi.induced_nodes, sgi.induced_edges, sgi)
+        sgi = self._graph.edge_subgraph(induced_edges, preserve_nodes=preserve_nodes)
+        return subgraph.DGLSubGraph(self, sgi)
 
-    def adjacency_matrix_scipy(self, transpose=False, fmt='csr'):
+    def adjacency_matrix_scipy(self, transpose=None, fmt='csr', return_edge_ids=None):
         """Return the scipy adjacency matrix representation of this graph.
 
         By default, a row of returned adjacency matrix represents the destination
@@ -2845,14 +3048,16 @@ class DGLGraph(DGLBaseGraph):
         When transpose is True, a row represents the source and a column represents
         a destination.
 
-        The elements in the adajency matrix are edge ids.
-
         Parameters
         ----------
         transpose : bool, optional (default=False)
             A flag to transpose the returned adjacency matrix.
         fmt : str, optional (default='csr')
             Indicates the format of returned adjacency matrix.
+        return_edge_ids : bool, optional (default=True)
+            If True, the elements in the adjacency matrix are edge ids.
+            Note that one of the element is 0.  Proceed with caution.
+            If False, the elements will be always 1.
 
         Returns
         -------
@@ -2860,9 +3065,15 @@ class DGLGraph(DGLBaseGraph):
             The scipy representation of adjacency matrix.
 
         """
-        return self._graph.adjacency_matrix_scipy(transpose, fmt)
+        if transpose is None:
+            dgl_warning(
+                "Currently adjacency_matrix() returns a matrix with destination as rows"
+                " by default.  In 0.5 the result will have source as rows"
+                " (i.e. transpose=True)")
+            transpose = False
+        return self._graph.adjacency_matrix_scipy(transpose, fmt, return_edge_ids)
 
-    def adjacency_matrix(self, transpose=False, ctx=F.cpu()):
+    def adjacency_matrix(self, transpose=None, ctx=F.cpu()):
         """Return the adjacency matrix representation of this graph.
 
         By default, a row of returned adjacency matrix represents the
@@ -2883,6 +3094,12 @@ class DGLGraph(DGLBaseGraph):
         SparseTensor
             The adjacency matrix.
         """
+        if transpose is None:
+            dgl_warning(
+                "Currently adjacency_matrix() returns a matrix with destination as rows"
+                " by default.  In 0.5 the result will have source as rows"
+                " (i.e. transpose=True)")
+            transpose = False
         return self._graph.adjacency_matrix(transpose, ctx)[0]
 
     def incidence_matrix(self, typestr, ctx=F.cpu()):
@@ -2992,8 +3209,8 @@ class DGLGraph(DGLBaseGraph):
             v = utils.toindex(nodes)
 
         n_repr = self.get_n_repr(v)
-        nbatch = NodeBatch(self, v, n_repr)
-        n_mask = predicate(nbatch)
+        nbatch = NodeBatch(v, n_repr)
+        n_mask = F.copy_to(predicate(nbatch), F.cpu())
 
         if is_all(nodes):
             return F.nonzero_1d(n_mask)
@@ -3050,8 +3267,8 @@ class DGLGraph(DGLBaseGraph):
         filter_nodes
         """
         if is_all(edges):
-            eid = ALL
-            u, v, _ = self._graph.edges()
+            u, v, _ = self._graph.edges('eid')
+            eid = utils.toindex(slice(0, self.number_of_edges()))
         elif isinstance(edges, tuple):
             u, v = edges
             u = utils.toindex(u)
@@ -3065,8 +3282,8 @@ class DGLGraph(DGLBaseGraph):
         src_data = self.get_n_repr(u)
         edge_data = self.get_e_repr(eid)
         dst_data = self.get_n_repr(v)
-        ebatch = EdgeBatch(self, (u, v, eid), src_data, edge_data, dst_data)
-        e_mask = predicate(ebatch)
+        ebatch = EdgeBatch((u, v, eid), src_data, edge_data, dst_data)
+        e_mask = F.copy_to(predicate(ebatch), F.cpu())
 
         if is_all(edges):
             return F.nonzero_1d(e_mask)
@@ -3111,3 +3328,233 @@ class DGLGraph(DGLBaseGraph):
         return ret.format(node=self.number_of_nodes(), edge=self.number_of_edges(),
                           ndata=str(self.node_attr_schemes()),
                           edata=str(self.edge_attr_schemes()))
+
+    # pylint: disable=invalid-name
+    def to(self, ctx):
+        """Move both ndata and edata to the targeted mode (cpu/gpu)
+        Framework agnostic
+
+        Parameters
+        ----------
+        ctx : framework-specific context object
+            The context to move data to.
+
+        Examples
+        --------
+        The following example uses PyTorch backend.
+
+        >>> import torch
+        >>> G = dgl.DGLGraph()
+        >>> G.add_nodes(5, {'h': torch.ones((5, 2))})
+        >>> G.add_edges([0, 1], [1, 2], {'m' : torch.ones((2, 2))})
+        >>> G.add_edges([0, 1], [1, 2], {'m' : torch.ones((2, 2))})
+        >>> G.to(torch.device('cuda:0'))
+        """
+        for k in self.ndata.keys():
+            self.ndata[k] = F.copy_to(self.ndata[k], ctx)
+        for k in self.edata.keys():
+            self.edata[k] = F.copy_to(self.edata[k], ctx)
+    # pylint: enable=invalid-name
+
+    def local_var(self):
+        """Return a graph object that can be used in a local function scope.
+
+        The returned graph object shares the feature data and graph structure of this graph.
+        However, any out-place mutation to the feature data will not reflect to this graph,
+        thus making it easier to use in a function scope.
+
+        If set, the local graph object will use same initializers for node features and
+        edge features.
+
+        Examples
+        --------
+        The following example uses PyTorch backend.
+
+        Avoid accidentally overriding existing feature data. This is quite common when
+        implementing a NN module:
+
+        >>> def foo(g):
+        >>>     g = g.local_var()
+        >>>     g.ndata['h'] = torch.ones((g.number_of_nodes(), 3))
+        >>>     return g.ndata['h']
+        >>>
+        >>> g = ... # some graph
+        >>> g.ndata['h'] = torch.zeros((g.number_of_nodes(), 3))
+        >>> newh = foo(g)  # get tensor of all ones
+        >>> print(g.ndata['h'])  # still get tensor of all zeros
+
+        Automatically garbage collect locally-defined tensors without the need to manually
+        ``pop`` the tensors.
+
+        >>> def foo(g):
+        >>>     g = g.local_var()
+        >>>     # This 'xxx' feature will stay local and be GCed when the function exits
+        >>>     g.ndata['xxx'] = torch.ones((g.number_of_nodes(), 3))
+        >>>     return g.ndata['xxx']
+        >>>
+        >>> g = ... # some graph
+        >>> xxx = foo(g)
+        >>> print('xxx' in g.ndata)
+        False
+
+        Notes
+        -----
+        Internally, the returned graph shares the same feature tensors, but construct a new
+        dictionary structure (aka. Frame) so adding/removing feature tensors from the returned
+        graph will not reflect to the original graph. However, inplace operations do change
+        the shared tensor values, so will be reflected to the original graph. This function
+        also has little overhead when the number of feature tensors in this graph is small.
+
+        See Also
+        --------
+        local_var
+
+        Returns
+        -------
+        DGLGraph
+            The graph object that can be used as a local variable.
+        """
+        local_node_frame = FrameRef(Frame(self._node_frame._frame))
+        local_edge_frame = FrameRef(Frame(self._edge_frame._frame))
+        # Use same per-column initializers and default initializer.
+        # If registered, a column (based on key) initializer will be used first,
+        # otherwise the default initializer will be used.
+        sync_frame_initializer(local_node_frame._frame, self._node_frame._frame)
+        sync_frame_initializer(local_edge_frame._frame, self._edge_frame._frame)
+        return DGLGraph(self._graph,
+                        local_node_frame,
+                        local_edge_frame)
+
+    @contextmanager
+    def local_scope(self):
+        """Enter a local scope context for this graph.
+
+        By entering a local scope, any out-place mutation to the feature data will
+        not reflect to the original graph, thus making it easier to use in a function scope.
+
+        If set, the local scope will use same initializers for node features and
+        edge features.
+
+        Examples
+        --------
+        The following example uses PyTorch backend.
+
+        Avoid accidentally overriding existing feature data. This is quite common when
+        implementing a NN module:
+
+        >>> def foo(g):
+        >>>     with g.local_scope():
+        >>>         g.ndata['h'] = torch.ones((g.number_of_nodes(), 3))
+        >>>         return g.ndata['h']
+        >>>
+        >>> g = ... # some graph
+        >>> g.ndata['h'] = torch.zeros((g.number_of_nodes(), 3))
+        >>> newh = foo(g)  # get tensor of all ones
+        >>> print(g.ndata['h'])  # still get tensor of all zeros
+
+        Automatically garbage collect locally-defined tensors without the need to manually
+        ``pop`` the tensors.
+
+        >>> def foo(g):
+        >>>     with g.local_scope():
+        >>>     # This 'xxx' feature will stay local and be GCed when the function exits
+        >>>         g.ndata['xxx'] = torch.ones((g.number_of_nodes(), 3))
+        >>>         return g.ndata['xxx']
+        >>>
+        >>> g = ... # some graph
+        >>> xxx = foo(g)
+        >>> print('xxx' in g.ndata)
+        False
+
+        See Also
+        --------
+        local_var
+        """
+        old_nframe = self._node_frame
+        old_eframe = self._edge_frame
+        self._node_frame = FrameRef(Frame(self._node_frame._frame))
+        self._edge_frame = FrameRef(Frame(self._edge_frame._frame))
+        # Use same per-column initializers and default initializer.
+        # If registered, a column (based on key) initializer will be used first,
+        # otherwise the default initializer will be used.
+        sync_frame_initializer(self._node_frame._frame, old_nframe._frame)
+        sync_frame_initializer(self._edge_frame._frame, old_eframe._frame)
+        yield
+        self._node_frame = old_nframe
+        self._edge_frame = old_eframe
+
+############################################################
+# Internal APIs
+############################################################
+
+class AdaptedDGLGraph(GraphAdapter):
+    """Adapt DGLGraph to interface required by scheduler.
+
+    Parameters
+    ----------
+    graph : DGLGraph
+        Graph
+    """
+    def __init__(self, graph):
+        self.graph = graph
+
+    @property
+    def gidx(self):
+        return self.graph._graph
+
+    def num_src(self):
+        """Number of source nodes."""
+        return self.graph.number_of_nodes()
+
+    def num_dst(self):
+        """Number of destination nodes."""
+        return self.graph.number_of_nodes()
+
+    def num_edges(self):
+        """Number of edges."""
+        return self.graph.number_of_edges()
+
+    @property
+    def srcframe(self):
+        """Frame to store source node features."""
+        return self.graph._node_frame
+
+    @property
+    def dstframe(self):
+        """Frame to store source node features."""
+        return self.graph._node_frame
+
+    @property
+    def edgeframe(self):
+        """Frame to store edge features."""
+        return self.graph._edge_frame
+
+    @property
+    def msgframe(self):
+        """Frame to store messages."""
+        return self.graph._msg_frame
+
+    @property
+    def msgindicator(self):
+        """Message indicator tensor."""
+        return self.graph._get_msg_index()
+
+    @msgindicator.setter
+    def msgindicator(self, val):
+        """Set new message indicator tensor."""
+        self.graph._set_msg_index(val)
+
+    def in_edges(self, nodes):
+        return self.graph._graph.in_edges(nodes)
+
+    def out_edges(self, nodes):
+        return self.graph._graph.out_edges(nodes)
+
+    def edges(self, form):
+        return self.graph._graph.edges(form)
+
+    def get_immutable_gidx(self, ctx):
+        return self.graph._graph.get_immutable_gidx(ctx)
+
+    def bits_needed(self):
+        return self.graph._graph.bits_needed()

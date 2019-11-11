@@ -1,6 +1,6 @@
 .. _apigraph:
 
-DGLGraph -- Graph with node/edge features
+DGLGraph -- Untyped graph with node/edge features
 =========================================
 
 .. currentmodule:: dgl
@@ -45,6 +45,15 @@ Querying graph structure
     DGLGraph.out_degree
     DGLGraph.out_degrees
 
+Removing nodes and edges
+------------------------
+
+.. autosummary::
+    :toctree: ../../generated/
+    
+    DGLGraph.remove_nodes
+    DGLGraph.remove_edges
+
 Transforming graph
 ------------------
 
@@ -85,6 +94,8 @@ Using Node/edge features
     DGLGraph.edge_attr_schemes
     DGLGraph.set_n_initializer
     DGLGraph.set_e_initializer
+    DGLGraph.local_var
+    DGLGraph.local_scope
 
 Computing with DGLGraph
 -----------------------
@@ -109,3 +120,4 @@ Computing with DGLGraph
     DGLGraph.prop_edges
     DGLGraph.filter_nodes
     DGLGraph.filter_edges
+    DGLGraph.to

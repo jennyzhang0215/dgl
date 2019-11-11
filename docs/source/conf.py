@@ -194,8 +194,10 @@ intersphinx_mapping = {
 # sphinx gallery configurations
 from sphinx_gallery.sorting import FileNameSortKey
 
-examples_dirs = ['../../tutorials/basics','../../tutorials/models']  # path to find sources
-gallery_dirs = ['tutorials/basics','tutorials/models']  # path to generate docs
+examples_dirs = ['../../tutorials/basics',
+                 '../../tutorials/models',
+                 '../../tutorials/hetero']  # path to find sources
+gallery_dirs = ['tutorials/basics','tutorials/models','tutorials/hetero']  # path to generate docs
 reference_url = {
     'dgl' : None,
     'numpy': 'http://docs.scipy.org/doc/numpy/',
@@ -215,7 +217,8 @@ sphinx_gallery_conf = {
 }
 
 # Compatibility for different backend when builds tutorials
-if os.environ['DGLBACKEND'] == 'mxnet':
+dglbackend = os.environ.get("DGLBACKEND", "")
+if dglbackend == 'mxnet':
     sphinx_gallery_conf['filename_pattern'] = "/*(?<=mx)\.py"
-if os.environ['DGLBACKEND'] == 'pytorch':
+if dglbackend == 'pytorch':
     sphinx_gallery_conf['filename_pattern'] = "/*(?<!mx)\.py"

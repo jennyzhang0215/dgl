@@ -1,12 +1,10 @@
 """Utility module."""
 from __future__ import absolute_import, division
 
-import ctypes
 from collections.abc import Mapping, Iterable
 from functools import wraps
 import numpy as np
 
-from . import _api_internal
 from .base import DGLError
 from . import backend as F
 from . import ndarray as nd
@@ -252,6 +250,29 @@ def zero_index(size):
     """
     return Index(F.zeros((size,), dtype=F.int64, ctx=F.cpu()))
 
+def set_diff(ar1, ar2):
+    """Find the set difference of two index arrays.
+    Return the unique values in ar1 that are not in ar2.
+
+    Parameters
+    ----------
+    ar1: utils.Index
+        Input index array.
+
+    ar2: utils.Index
+        Input comparison index array.
+
+    Returns
+    -------
+    setdiff:
+        Array of values in ar1 that are not in ar2.
+    """
+    ar1_np = ar1.tonumpy()
+    ar2_np = ar2.tonumpy()
+    setdiff = np.setdiff1d(ar1_np, ar2_np)
+    setdiff = toindex(setdiff)
+    return setdiff
+
 class LazyDict(Mapping):
     """A readonly dictionary that does not materialize the storage."""
     def __init__(self, fn, keys):
@@ -259,7 +280,7 @@ class LazyDict(Mapping):
         self._keys = keys
 
     def __getitem__(self, key):
-        if not key in self._keys:
+        if key not in self._keys:
             raise KeyError(key)
         return self._fn(key)
 
@@ -336,7 +357,7 @@ def build_relabel_map(x, is_sorted=False):
     >>> n2o
     [1, 3, 5, 6]
     >>> o2n
-    [n/a, 0, n/a, 2, n/a, 3, 4]
+    [n/a, 0, n/a, 1, n/a, 2, 3]
 
     "n/a" will be filled with 0
 
@@ -401,7 +422,7 @@ class CtxCachedObject(object):
         self._ctx_dict = {}
 
     def __call__(self, ctx):
-        if not ctx in self._ctx_dict:
+        if ctx not in self._ctx_dict:
             self._ctx_dict[ctx] = self._generator(ctx)
         return self._ctx_dict[ctx]
 
@@ -424,7 +445,7 @@ def cached_member(cache, prefix):
         def wrapper(self, *args):
             dic = getattr(self, cache)
             key = '%s-%s' % (prefix, '-'.join([str(a) for a in args]))
-            if not key in dic:
+            if key not in dic:
                 dic[key] = func(self, *args)
             return dic[key]
         return wrapper
@@ -469,47 +490,29 @@ def is_iterable(obj):
     """Return true if the object is an iterable."""
     return isinstance(obj, Iterable)
 
-def get_ndata_name(g, name):
-    """Return a node data name that does not exist in the given graph.
+def to_dgl_context(ctx):
+    """Convert a backend context to DGLContext"""
+    device_type = nd.DGLContext.STR2MASK[F.device_type(ctx)]
+    device_id = F.device_id(ctx)
+    return nd.DGLContext(device_type, device_id)
 
-    The given name is directly returned if it does not exist in the given graph.
-
-    Parameters
-    ----------
-    g : DGLGraph
-        The graph.
-    name : str
-        The proposed name.
-
-    Returns
-    -------
-    str
-        The node data name that does not exist.
+def to_nbits_int(tensor, nbits):
+    """Change the dtype of integer tensor
+    The dtype of returned tensor uses nbits, nbits can only be 32 or 64
     """
-    while name in g.ndata:
-        name += '_'
-    return name
+    assert(nbits in (32, 64)), "nbits can either be 32 or 64"
+    if nbits == 32:
+        return F.astype(tensor, F.int32)
+    else:
+        return F.astype(tensor, F.int64)
 
-def unwrap_to_ptr_list(wrapper):
-    """Convert the internal vector wrapper to a python list of ctypes.c_void_p.
-
-    The wrapper will be destroyed after this function.
-
-    Parameters
-    ----------
-    wrapper : ctypes.c_void_p
-        The handler to the wrapper.
-
-    Returns
-    -------
-    list of ctypes.c_void_p
-        A python list of void pointers.
-    """
-    size = _api_internal._GetVectorWrapperSize(wrapper)
-    if size == 0:
-        return []
-    data = _api_internal._GetVectorWrapperData(wrapper)
-    data = ctypes.cast(data, ctypes.POINTER(ctypes.c_void_p * size))
-    rst = [ctypes.c_void_p(x) for x in data.contents]
-    _api_internal._FreeVectorWrapper(wrapper)
-    return rst
+def make_invmap(array, use_numpy=True):
+    """Find the unique elements of the array and return another array with indices
+    to the array of unique elements."""
+    if use_numpy:
+        uniques = np.unique(array)
+    else:
+        uniques = list(set(array))
+    invmap = {x: i for i, x in enumerate(uniques)}
+    remapped = np.array([invmap[x] for x in array])
+    return uniques, invmap, remapped

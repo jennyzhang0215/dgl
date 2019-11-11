@@ -1,6 +1,7 @@
 """Training GCN model on citation graphs."""
 import argparse, time
 import numpy as np
+import networkx as nx
 import mxnet as mx
 from mxnet import gluon
 
@@ -24,6 +25,7 @@ def main(args):
     train_mask = mx.nd.array(data.train_mask)
     val_mask = mx.nd.array(data.val_mask)
     test_mask = mx.nd.array(data.test_mask)
+
     in_feats = features.shape[1]
     n_classes = data.num_labels
     n_edges = data.graph.number_of_edges()
@@ -52,8 +54,11 @@ def main(args):
     test_mask = test_mask.as_in_context(ctx)
 
     # create GCN model
-    g = DGLGraph(data.graph)
-    g.add_edges(g.nodes(), g.nodes())
+    g = data.graph
+    if args.self_loop:
+        g.remove_edges_from(nx.selfloop_edges(g))
+        g.add_edges_from(zip(g.nodes(), g.nodes()))
+    g = DGLGraph(g)
     # normalization
     degs = g.in_degrees().astype('float32')
     norm = mx.nd.power(degs, -0.5)
@@ -120,6 +125,9 @@ if __name__ == '__main__':
             help="number of hidden gcn layers")
     parser.add_argument("--weight-decay", type=float, default=5e-4,
             help="Weight for L2 loss")
+    parser.add_argument("--self-loop", action='store_true',
+            help="graph self-loop (default=False)")
+    parser.set_defaults(self_loop=False)
     args = parser.parse_args()
 
     print(args)

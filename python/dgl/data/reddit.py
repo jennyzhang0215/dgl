@@ -4,7 +4,6 @@ import scipy.sparse as sp
 import numpy as np
 import dgl
 import os, sys
-from ..graph_index import create_graph_index
 from .utils import download, extract_archive, get_download_dir, _get_dgl_url
 
 
@@ -20,7 +19,7 @@ class RedditDataset(object):
         extract_archive(zip_file_path, extract_dir)
         # graph
         coo_adj = sp.load_npz(os.path.join(extract_dir, "reddit{}_graph.npz".format(self_loop_str)))
-        self.graph = create_graph_index(coo_adj, readonly=True)
+        self.graph = dgl.DGLGraph(coo_adj, readonly=True)
         # features and labels
         reddit_data = np.load(os.path.join(extract_dir, "reddit_data.npz"))
         self.features = reddit_data["feature"]
@@ -42,3 +41,15 @@ class RedditDataset(object):
         print('  NumValidationSamples: {}'.format(len(np.nonzero(self.val_mask)[0])))
         print('  NumTestSamples: {}'.format(len(np.nonzero(self.test_mask)[0])))
 
+    def __getitem__(self, idx):
+        assert idx == 0, "Reddit Dataset only has one graph"
+        g = self.graph
+        g.ndata['train_mask'] = self.train_mask
+        g.ndata['val_mask'] = self.val_mask
+        g.ndata['test_mask'] = self.test_mask
+        g.ndata['feat'] = self.features
+        g.ndata['label'] = self.labels
+        return g
+    
+    def __len__(self):
+        return 1

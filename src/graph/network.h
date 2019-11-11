@@ -7,21 +7,194 @@
 #define DGL_GRAPH_NETWORK_H_
 
 #include <dmlc/logging.h>
+#include <dgl/runtime/ndarray.h>
+
+#include <string.h>
+#include <vector>
+#include <string>
+
+#include "../c_api_common.h"
+#include "./network/msg_queue.h"
+
+using dgl::runtime::NDArray;
 
 namespace dgl {
 namespace network {
 
-#define IS_SENDER    true
-#define IS_RECEIVER  false
+// Max size of message queue for communicator is 200 MB
+// TODO(chao): Make this number configurable
+const int64_t kQueueSize = 200 * 1024 * 1024;
 
-// TODO(chao): make these numbers configurable
+/*!
+ * \brief Create NDArray from raw data
+ */
+NDArray CreateNDArrayFromRaw(std::vector<int64_t> shape,
+                             DLDataType dtype,
+                             DLContext ctx,
+                             void* raw);
 
-// Each single message cannot larger than 300 MB
-const int64_t kMaxBufferSize = 300 * 1024 * 2014;
-// Size of message queue is 1 GB
-const int64_t kQueueSize = 1024 * 1024 * 1024;
-// Maximal try count of connection
-const int kMaxTryCount = 500;
+/*!
+ * \brief Message type for DGL distributed training
+ */
+enum MessageType {
+  /*!
+   * \brief Message for send/recv NodeFlow
+   */
+  kNodeFlowMsg = 0,
+  /*!
+   * \brief Message for end-signal
+   */
+  kFinalMsg = 1,
+  /*!
+   * \brief Initialize KVStore
+   */
+  kInitMsg = 2,
+  /*!
+   * \brief Push msg to KVStore
+   */
+  kPushMsg = 3,
+  /*!
+   * \brief Pull msg from KVStore
+   */
+  kPullMsg = 4,
+  /*!
+   * \brief PullBack msg from KVStore
+   */
+  kPullBackMsg = 5,
+  /*!
+   * \brief Barrier msg for KVStore
+   */
+  kBarrierMsg = 6
+};
+
+/*!
+ * \brief Meta data for NDArray message
+ */
+class ArrayMeta {
+ public:
+  /*!
+   * \brief ArrayMeta constructor.
+   * \param msg_type type of message
+   */
+  explicit ArrayMeta(int msg_type)
+  : msg_type_(msg_type), ndarray_count_(0) {}
+
+  /*!
+   * \brief Construct ArrayMeta from binary data buffer.
+   * \param buffer data buffer
+   * \param size data size
+   */
+  ArrayMeta(char* buffer, int64_t size) {
+    CHECK_NOTNULL(buffer);
+    this->Deserialize(buffer, size);
+  }
+
+  /*!
+   * \return message type
+   */
+  inline int msg_type() const {
+    return msg_type_;
+  }
+
+  /*!
+   * \return count of ndarray
+   */
+  inline int ndarray_count() const {
+    return ndarray_count_;
+  }
+
+  /*!
+   * \brief Add NDArray meta data to ArrayMeta
+   * \param array DGL NDArray
+   */
+  void AddArray(const NDArray& array);
+
+  /*!
+   * \brief Serialize ArrayMeta to data buffer
+   * \param size size of serialized message
+   * \return pointer of data buffer
+   */
+  char* Serialize(int64_t* size);
+
+  /*!
+   * \brief Deserialize ArrayMeta from data buffer
+   * \param buffer data buffer
+   * \param size size of data buffer
+   */
+  void Deserialize(char* buffer, int64_t size);
+
+  /*!
+   * \brief type of message
+   */
+  int msg_type_;
+
+  /*!
+   * \brief count of ndarray in MetaMsg
+   */
+  int ndarray_count_;
+
+  /*!
+   * \brief We first write the ndim to data_shape_ 
+   * and then write the data shape. 
+   */
+  std::vector<int64_t> data_shape_;
+};
+
+/*!
+ * \brief C structure for holding DGL KVServer message
+ */
+class KVStoreMsg {
+ public:
+  /*!
+   * \brief KVStoreMsg constructor.
+   */
+  KVStoreMsg() {}
+
+  /*!
+   * \brief Construct KVStoreMsg from binary data buffer.
+   * \param buffer data buffer
+   * \param size data size
+   */
+  KVStoreMsg(char* buffer, int64_t size) {
+    CHECK_NOTNULL(buffer);
+    this->Deserialize(buffer, size);
+  }
+  /*!
+   * \brief Serialize KVStoreMsg to data buffer
+   *  Note that we don't serialize ID and data here. 
+   * \param size size of serialized message
+   * \return pointer of data buffer
+   */
+  char* Serialize(int64_t* size);
+
+  /*!
+   * \brief Deserialize KVStoreMsg from data buffer
+   * \param buffer data buffer
+   * \param size size of data buffer
+   */
+  void Deserialize(char* buffer, int64_t size);
+
+ /*!
+  * \brief Message type of kvstore
+  */
+  int msg_type;
+ /*!
+  * \brief Sender's ID
+  */
+  int rank;
+ /*!
+  * \brief data name
+  */
+  std::string name;
+ /*!
+  * \brief data ID
+  */
+  NDArray id;
+ /*!
+  * \brief data matrix
+  */
+  NDArray data;
+};
 
 }  // namespace network
 }  // namespace dgl

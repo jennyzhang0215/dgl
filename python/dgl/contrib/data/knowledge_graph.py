@@ -120,7 +120,7 @@ class RGCNEntityDataset(object):
                 self.test_idx = node_map[self.test_idx]
                 print("{} nodes left".format(self.num_nodes))
         else:
-            self.src, self.dst, self.edge_type = edges.transpose()
+            self.edge_src, self.edge_dst, self.edge_type = edges.transpose()
 
         # normalize by dst degree
         _, inverse_index, count = np.unique((self.edge_dst, self.edge_type), axis=1, return_inverse=True, return_counts=True)
@@ -327,7 +327,7 @@ def _load_data(dataset_str='aifb', dataset_path=None):
     train_file = os.path.join(dataset_path, 'trainingSet.tsv')
     test_file = os.path.join(dataset_path, 'testSet.tsv')
     if dataset_str == 'am':
-        label_header = 'label_category'
+        label_header = 'label_cateogory'
         nodes_header = 'proxy'
     elif dataset_str == 'aifb':
         label_header = 'label_affiliation'

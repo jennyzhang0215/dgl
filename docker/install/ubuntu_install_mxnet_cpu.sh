@@ -1,1 +1,1 @@
-pip3 install --pre mxnet
+pip3 install mxnet
