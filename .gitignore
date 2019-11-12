@@ -149,3 +149,4 @@ cscope.*
 *~
 *.iml
 *.xml
+apps/kg/data/*

@@ -256,10 +256,13 @@ def run(args, logger):
         train(args, model, train_sampler, valid_samplers)
     print('training takes {} seconds'.format(time.time() - start))
 
-    if args.save_emb is not None:
-        if not os.path.exists(args.save_emb):
-            os.mkdir(args.save_emb)
-        model.save_emb(args.save_emb, args.dataset)
+    if args.save_emb is None:
+        args.save_emb = os.path.join("emb", "{}_{}_step{}_lr{}_b{}_neg{}_dim{}".format(args.dataset, args.model_name,
+        args.max_step, args.lr, args.batch_size, args.neg_sample_size, args.hidden_dim))
+    if not os.path.exists(args.save_emb):
+        os.mkdir(args.save_emb)
+    model.save_emb(args.save_emb, args.dataset)
+
 
     # test
     if args.test:
